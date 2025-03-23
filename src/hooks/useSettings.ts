@@ -19,6 +19,7 @@ export function useSettings() {
   const loadSettings = async () => {
     try {
       let settings = await invokeTauri<SettingsType>("get_settings");
+      console.log("Hook loaded settings:", settings);
       setSettings(settings);
     } catch (error) {
       logger.error(ErrorMessages.FETCH_ERROR + (error as Error).message);
@@ -29,6 +30,7 @@ export function useSettings() {
   const saveSettings = async (newSettings: Partial<SettingsType>) => {
     try {
       const updatedSettings = { ...settings, ...newSettings };
+      console.log("Hook saving settings:", updatedSettings);
       await invokeTauri("save_settings", {
         settings: updatedSettings,
       });

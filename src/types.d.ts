@@ -2,10 +2,7 @@ export type SettingsType = {
   modbus: {
     usbPort: string;
     baudrate: number;
-    temperatureAddress: {
-      top: number;
-      bottom: number;
-    };
+    initialAddress: number;
     count: number;
     timeout: number;
     unitId: number;

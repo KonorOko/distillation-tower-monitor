@@ -12,6 +12,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { formSchema } from "@/schemas/settings";
 import { SettingsType } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -33,41 +34,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 export function SettingsDialog({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const { settings, saveSettings } = useSettings();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {},
+    defaultValues: {
+      count: 2,
+    },
   });
 
   const [usbPorts, setUsbPorts] = useState<string[]>([]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log("newSettings");
-    const {
-      usbPort,
-      baudrate,
-      temperatureBottom,
-      temperatureTop,
-      timeout,
-      unitId,
-    } = values;
+    const { usbPort, baudrate, initialAddress, count, timeout, unitId } =
+      values;
     try {
-      const newSettings: SettingsType = {
+      const newSettings: Partial<SettingsType> = {
         modbus: {
           usbPort,
           baudrate,
-          temperatureAddress: {
-            bottom: temperatureBottom,
-            top: temperatureTop,
-          },
+          initialAddress,
           timeout,
           unitId,
-          count: 2,
+          count,
         },
-        numberPlates: 7,
       };
       await saveSettings(newSettings);
       setOpen(false);
@@ -78,6 +71,15 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
+    if (!open) return;
+    console.log("Settings:", settings);
+    form.setValue("usbPort", settings.modbus.usbPort);
+    form.setValue("baudrate", settings.modbus.baudrate);
+    form.setValue("initialAddress", settings.modbus.initialAddress);
+    form.setValue("timeout", settings.modbus.timeout);
+    form.setValue("unitId", settings.modbus.unitId);
+    form.setValue("count", settings.modbus.count);
+
     invokeTauri<string[]>("available_ports").then((ports) => {
       if (ports.length === 0) {
         setUsbPorts([]);
@@ -96,112 +98,152 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Configuración</DialogTitle>
+          <DialogTitle>Configuration</DialogTitle>
           <DialogDescription>
-            Configura los parámetros de connexión modbus
+            Configure the modbus connection parameters
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <FormField
-              control={form.control}
-              name="usbPort"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between gap-4">
-                  <FormLabel>Puerto USB</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Selecciona un puerto" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {usbPorts.length === 0 && (
-                        <SelectItem value={" "} disabled>
-                          No hay puertos...
-                        </SelectItem>
-                      )}
-                      {usbPorts.map((port) => (
-                        <SelectItem key={port} value={port}>
-                          {port}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="baudrate"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between gap-4">
-                  <FormLabel>Baudrate</FormLabel>
-                  <FormControl>
-                    <Input className="w-[200px]" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="timeout"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between gap-4">
-                  <FormLabel>Timeout</FormLabel>
-                  <FormControl>
-                    <Input className="w-[200px]" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="unitId"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between gap-4">
-                  <FormLabel>ID de unidad</FormLabel>
-                  <FormControl>
-                    <Input className="w-[200px]" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="temperatureBottom"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between gap-4">
-                  <FormLabel>Dirección del sensor inferior</FormLabel>
-                  <FormControl>
-                    <Input className="w-[200px]" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="temperatureTop"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between gap-4">
-                  <FormLabel>Dirección del sensor superior</FormLabel>
-                  <FormControl>
-                    <Input className="w-[200px]" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <Tabs className="w-full" defaultValue="connection">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="connection">Connection</TabsTrigger>
+                <TabsTrigger value="advanced" disabled>
+                  Advanced
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="connection" className="space-y-4 pt-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="usbPort"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>USB Port</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-[200px]">
+                              <SelectValue placeholder="Select a port" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {usbPorts.length === 0 && (
+                              <SelectItem value={" "} disabled>
+                                No ports found.
+                              </SelectItem>
+                            )}
+                            {usbPorts.map((port) => (
+                              <SelectItem key={port} value={port}>
+                                {port}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="baudrate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Baudrate</FormLabel>
+                        <FormControl>
+                          <Input
+                            className="w-[200px]"
+                            placeholder="Enter baudrate"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="timeout"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Timeout</FormLabel>
+                        <FormControl>
+                          <Input
+                            className="w-[200px]"
+                            placeholder="Enter timeout"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="unitId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Unit ID</FormLabel>
+                        <FormControl>
+                          <Input
+                            className="w-[200px]"
+                            placeholder="Enter unit ID"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="initialAddress"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Initial Address</FormLabel>
+                        <FormControl>
+                          <Input
+                            className="w-[200px]"
+                            placeholder="Enter initial address"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="count"
+                    disabled
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Count</FormLabel>
+                        <FormControl>
+                          <Input
+                            className="w-[200px] select-none"
+                            placeholder="Enter count"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
             <DialogFooter className="mt-5">
               <Button variant="outline" type="button" onClick={handleCancel}>
-                Cancelar
+                <X className="mr-2 h-4 w-4" />
+                Cancel
               </Button>
-              <Button type="submit">Guardar</Button>
+              <Button type="submit">
+                <Save className="mr-2 h-4 w-4" />
+                Save
+              </Button>
             </DialogFooter>
           </form>
         </Form>

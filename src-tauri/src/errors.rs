@@ -23,6 +23,8 @@ pub enum SettingsError {
     LoadError(String),
     #[error("Failed to save settings: {0}")]
     SaveError(String),
+    #[error("Failed to get usb devices")]
+    GetUsbDevicesError(String),
 }
 
 #[derive(Debug, Error, Serialize, Deserialize)]

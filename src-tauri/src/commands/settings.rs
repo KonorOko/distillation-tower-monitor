@@ -1,4 +1,4 @@
-use crate::errors::Result;
+use crate::errors::{Result, SettingsError};
 use crate::settings::{Settings, SettingsService};
 use crate::AppState;
 use log::debug;
@@ -43,6 +43,6 @@ pub async fn available_ports() -> Result<Vec<String>> {
                 .collect();
             Ok(port_names)
         }
-        Err(err) => Ok(vec![]),
+        Err(err) => Err(SettingsError::GetUsbDevicesError(err.to_string()).into()),
     }
 }
