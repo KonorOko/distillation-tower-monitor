@@ -7,7 +7,6 @@ export type SettingsType = {
     timeout: number;
     unitId: number;
   };
-  numberPlates: number;
 };
 
 export type SettingsContextType = {

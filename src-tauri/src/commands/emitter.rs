@@ -10,6 +10,7 @@ use tauri::State;
 pub async fn send_column_data(
     app_handle: AppHandle,
     app_state: State<'_, AppState>,
+    number_plates: usize,
 ) -> Result<(), String> {
     info!("Initializing send_column_data...");
     {
@@ -32,7 +33,7 @@ pub async fn send_column_data(
         };
         let mut data_service = DataService::new();
 
-        let entry = data_service.get_data(&app_state).await?;
+        let entry = data_service.get_data(&app_state, number_plates).await?;
 
         let mut history_guard = app_state.history.lock().await;
         history_guard.history.push(entry.clone());

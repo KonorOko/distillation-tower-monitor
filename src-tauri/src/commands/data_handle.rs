@@ -5,10 +5,14 @@ use calamine::{open_workbook, DataType, Reader, Xlsx};
 use log::info;
 use rust_xlsxwriter::{Workbook, XlsxError};
 use std::sync::Arc;
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 
 #[tauri::command]
-pub async fn import_data(app_state: State<'_, AppState>, path: String) -> Result<(), ()> {
+pub async fn import_data(
+    app_handle: AppHandle,
+    app_state: State<'_, AppState>,
+    path: String,
+) -> Result<(), String> {
     info!("Importing data from {}", path);
     let mut imported_data: Vec<Arc<ColumnEntry>> = Vec::new();
     let mut workbook: Xlsx<_> = open_workbook(path).unwrap();
@@ -23,6 +27,14 @@ pub async fn import_data(app_state: State<'_, AppState>, path: String) -> Result
         .map_err(|_| "Can't read sheet")
         .unwrap();
     let total_rows = range.rows().count().saturating_sub(1);
+    let number_plates = range
+        .rows()
+        .next()
+        .ok_or("No data in sheet")
+        .unwrap()
+        .len()
+        .saturating_sub(1)
+        / 3;
 
     for (index, row) in range.rows().skip(1).enumerate() {
         info!("Processing row {}", index);
@@ -37,26 +49,24 @@ pub async fn import_data(app_state: State<'_, AppState>, path: String) -> Result
             continue;
         };
 
-        let num_plates = (row.len() - 1) / 3;
-
         let temperatures: Vec<f64> = row
             .iter()
             .skip(1)
-            .take(num_plates)
+            .take(number_plates)
             .filter_map(|cell| cell.as_f64())
             .collect();
 
         let comp_x: Vec<Option<f64>> = row
             .iter()
-            .skip(1 + num_plates)
-            .take(num_plates)
+            .skip(1 + number_plates)
+            .take(number_plates)
             .map(|cell| cell.as_f64())
             .collect();
 
         let comp_y: Vec<Option<f64>> = row
             .iter()
-            .skip(1 + num_plates * 2)
-            .take(num_plates)
+            .skip(1 + number_plates * 2)
+            .take(number_plates)
             .map(|cell| cell.as_f64())
             .collect();
 
@@ -85,6 +95,9 @@ pub async fn import_data(app_state: State<'_, AppState>, path: String) -> Result
             data: imported_data,
         });
     }
+    app_handle
+        .emit("number_plates", number_plates)
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -118,12 +131,12 @@ pub async fn import_temperatures(app_state: State<'_, AppState>, path: &str) -> 
             continue;
         };
 
-        let num_plates = row.len() - 1;
+        let number_plates = row.len() - 1;
 
         let temperatures: Vec<f64> = row
             .iter()
             .skip(1)
-            .take(num_plates)
+            .take(number_plates)
             .filter_map(|cell| cell.as_f64())
             .collect();
 

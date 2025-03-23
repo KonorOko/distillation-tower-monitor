@@ -10,6 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useData } from "@/hooks/useData";
+import { usePlates } from "@/hooks/usePlates";
 import { cn } from "@/lib/utils";
 import { FileSpreadsheet, Upload, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -23,6 +24,7 @@ export function ImportDialog({ children }: { children: React.ReactNode }) {
   const connected = useData((state) => state.connected);
   const clearData = useData((state) => state.clearData);
   const setConnected = useData((state) => state.setConnected);
+  const numberPlates = usePlates((state) => state.numberPlates);
 
   const handleImport = () => {
     if (!filePath) {
@@ -37,7 +39,7 @@ export function ImportDialog({ children }: { children: React.ReactNode }) {
         await invokeTauri("import_data", {
           path: filePath,
         });
-        invokeTauri("send_column_data");
+        invokeTauri("send_column_data", { numberPlates });
       } catch (error) {
         throw new Error("Failed to import data");
       }

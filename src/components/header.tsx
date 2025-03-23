@@ -68,7 +68,11 @@ export function Header({ className }: { className?: string }) {
             Connect MODBUS
           </Button>
           <ExportDialog>
-            <Button variant={"outline"} className="rounded-l-none">
+            <Button
+              variant={"outline"}
+              disabled={connected !== "modbus"}
+              className="rounded-l-none"
+            >
               <Save className="h-4 w-4" />
               Save
             </Button>

@@ -3,14 +3,9 @@ import { SettingsContext } from "@/contexts/settings-context";
 import { invokeTauri, logger } from "@/adapters/tauri";
 import { SettingsType } from "@/types";
 
-const MAX_PLATES = 8;
-const MIN_PLATES = 1;
-
 enum ErrorMessages {
   FETCH_ERROR = "Error fetching settings: ",
   SAVE_ERROR = "Error saving settings: ",
-  ADD_PLATE_ERROR = "Error adding plate: ",
-  REMOVE_PLATE_ERROR = "Error removing plate: ",
 }
 
 export function useSettings() {
@@ -42,39 +37,9 @@ export function useSettings() {
     }
   };
 
-  const addPlate = async () => {
-    try {
-      if (settings.numberPlates < MAX_PLATES) {
-        await saveSettings({
-          numberPlates: settings.numberPlates + 1,
-        });
-      }
-    } catch (error) {
-      logger.error(ErrorMessages.ADD_PLATE_ERROR + (error as Error).message);
-      throw new Error(ErrorMessages.ADD_PLATE_ERROR);
-    }
-  };
-
-  const removePlate = async () => {
-    try {
-      if (settings.numberPlates > MIN_PLATES) {
-        await saveSettings({
-          numberPlates: settings.numberPlates - 1,
-        });
-      }
-    } catch (error) {
-      logger.error(ErrorMessages.REMOVE_PLATE_ERROR + (error as Error).message);
-      throw new Error(ErrorMessages.REMOVE_PLATE_ERROR);
-    }
-  };
-
   return {
     settings,
     loadSettings,
     saveSettings,
-    addPlate,
-    removePlate,
-    MAX_PLATES,
-    MIN_PLATES,
   };
 }

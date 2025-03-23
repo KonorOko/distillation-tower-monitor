@@ -28,14 +28,12 @@ impl Default for ModbusSettings {
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub modbus: ModbusSettings,
-    pub number_plates: usize,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Self {
             modbus: ModbusSettings::default(),
-            number_plates: 1,
         }
     }
 }

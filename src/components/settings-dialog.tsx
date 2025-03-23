@@ -9,7 +9,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useSettings } from "@/hooks/useSettings";
-import { formSchema } from "@/schemas/settings";
+import { settingsSchema } from "@/schemas/settings";
 import { SettingsType } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Save, X } from "lucide-react";
@@ -39,8 +39,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 export function SettingsDialog({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const { settings, saveSettings } = useSettings();
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<z.infer<typeof settingsSchema>>({
+    resolver: zodResolver(settingsSchema),
     defaultValues: {
       count: 2,
     },
@@ -48,13 +48,13 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
 
   const [usbPorts, setUsbPorts] = useState<string[]>([]);
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof settingsSchema>) {
     const { usbPort, baudrate, initialAddress, count, timeout, unitId } =
       values;
     try {
       const newSettings: Partial<SettingsType> = {
         modbus: {
-          usbPort,
+          usbPort: usbPort ?? "",
           baudrate,
           initialAddress,
           timeout,

@@ -7,16 +7,14 @@ export const SettingsContext = createContext<SettingsContextType>(
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<SettingsType>({
-    temperatureAddress: {
-      top: 0,
-      bottom: 0,
+    modbus: {
+      initialAddress: 0,
+      usbPort: "",
+      count: 2,
+      timeout: 0,
+      baudrate: 0,
+      unitId: 0,
     },
-    usbPort: "",
-    count: 2,
-    timeout: 0,
-    baudrate: 0,
-    unitId: 0,
-    numberPlates: 1,
   });
   return (
     <SettingsContext.Provider

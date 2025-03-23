@@ -6,7 +6,6 @@ use super::types::{ColumnEntry, DataSource};
 use crate::calculations::service::CalculationService;
 use crate::calculations::types::CompositionResult;
 use crate::modbus::{client::ModbusClient, service::ModbusService};
-use crate::settings::service::SettingsService;
 use crate::AppState;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -20,6 +19,7 @@ impl DataService {
     pub async fn get_data(
         &mut self,
         app_state: &State<'_, AppState>,
+        number_plates: usize,
     ) -> Result<Arc<ColumnEntry>, String> {
         let transmission_state = &app_state.transmission_state;
         let transmission_guard = &mut transmission_state.lock().await;
@@ -39,13 +39,9 @@ impl DataService {
                 let modbus_client = ModbusClient::new();
                 let modbus_service = ModbusService::new(modbus_client);
                 let calculation_service = CalculationService::new();
-                let settings_service = SettingsService::new();
 
                 // Get channel
                 let mut channel = app_state.modbus_channel.lock().await;
-
-                // Get settings path
-                let settings_path = app_state.settings_path.clone();
 
                 // Modbus parameters
                 let param = rodbus::client::RequestParam {
@@ -64,19 +60,15 @@ impl DataService {
                     .await
                     .map_err(|e| e.to_string())?;
 
-                // Get settings
-                let settings = settings_service.get_settings(&settings_path)?;
-                let num_plates = settings.number_plates;
-
                 // Interpolate temperatures
                 let inter_temps = &calculation_service.interpolate_temps(
-                    num_plates,
+                    number_plates,
                     temperatures[0].value as f64 / 100.0,
                     temperatures[1].value as f64 / 100.0,
                 );
 
                 // Calculate compositions
-                let mut compositions = Vec::with_capacity(num_plates);
+                let mut compositions = Vec::with_capacity(number_plates);
                 for temp in inter_temps {
                     let composition = calculation_service
                         .calculate_composition(None, *temp, None, None)
