@@ -34,7 +34,7 @@ export function ImportDialog({ children }: { children: React.ReactNode }) {
 
     const handleFile = async () => {
       try {
-        await invokeTauri("import_temperatures", {
+        await invokeTauri("import_data", {
           path: filePath,
         });
         invokeTauri("send_column_data");

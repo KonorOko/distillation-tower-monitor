@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use super::types::ModbusConnection;
 use crate::errors::{ModbusError, Result};
 use crate::settings::types::ModbusSettings;
@@ -32,7 +34,7 @@ impl ModbusConnection for ModbusClient {
         let decode = DecodeLevel::default();
         let listener = None;
 
-        let channel = client::spawn_rtu_client_task(
+        let mut channel = client::spawn_rtu_client_task(
             &settings.usb_port,
             modbus_settings,
             max_queue_size,
@@ -46,7 +48,31 @@ impl ModbusConnection for ModbusClient {
             .await
             .map_err(|e| ModbusError::ConnectionError(e.to_string()))?;
 
-        Ok(channel)
+        let param = RequestParam {
+            id: UnitId {
+                value: settings.unit_id,
+            },
+            response_timeout: Duration::from_millis(settings.timeout),
+        };
+
+        for attempt in 1..=3 {
+            match channel
+                .read_coils(param, AddressRange::try_from(1, 1).unwrap())
+                .await
+            {
+                Ok(_) => {
+                    println!("Connected successfully");
+                    return Ok(channel);
+                }
+                Err(err) => {
+                    println!("Attempt {}/3 failed: {:?}", attempt, err);
+                    if attempt < 3 {
+                        tokio::time::sleep(std::time::Duration::from_secs(1)).await
+                    }
+                }
+            }
+        }
+        Err(ModbusError::ConnectionError("Failed to connect".to_string()).into())
     }
 
     async fn disconnect(&self, channel: Channel) -> Result<()> {

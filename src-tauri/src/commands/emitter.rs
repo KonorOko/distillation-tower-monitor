@@ -34,6 +34,9 @@ pub async fn send_column_data(
 
         let entry = data_service.get_data(&app_state).await?;
 
+        let mut history_guard = app_state.history.lock().await;
+        history_guard.history.push(entry.clone());
+
         println!("\nSending: {:?}", entry);
         app_handle
             .emit("column_data", entry)
@@ -48,6 +51,9 @@ pub async fn cancel_column_data(app_state: State<'_, AppState>) -> Result<(), St
     println!("Canceling column data");
     let mut transmission_state = app_state.transmission_state.lock().await;
     transmission_state.reset();
+
+    let mut history_guard = app_state.history.lock().await;
+    history_guard.history.clear();
 
     Ok(())
 }
