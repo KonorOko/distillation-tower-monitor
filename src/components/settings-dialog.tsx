@@ -1,16 +1,41 @@
+import { invokeTauri, logger } from "@/adapters/tauri";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useState } from "react";
+import { useSettings } from "@/hooks/useSettings";
+import { formSchema } from "@/schemas/settings";
+import { SettingsType } from "@/types";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
+import { Button } from "./ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "./ui/form";
+import { Input } from "./ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 
 export function SettingsDialog({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
-  /*
   const { settings, saveSettings } = useSettings();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -30,7 +55,20 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
       unitId,
     } = values;
     try {
-      const newSettings: Partial<SettingsType> = {};
+      const newSettings: SettingsType = {
+        modbus: {
+          usbPort,
+          baudrate,
+          temperatureAddress: {
+            bottom: temperatureBottom,
+            top: temperatureTop,
+          },
+          timeout,
+          unitId,
+          count: 2,
+        },
+        numberPlates: 7,
+      };
       await saveSettings(newSettings);
       setOpen(false);
     } catch (error) {
@@ -40,28 +78,18 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    const { baudrate, temperatureAddress, timeout, unitId, usbPort } = settings;
-    form.setValue("baudrate", baudrate.toString() as unknown as number);
-    form.setValue("temperatureBottom", temperatureAddress.bottom);
-    form.setValue("temperatureTop", temperatureAddress.top);
-    form.setValue("timeout", timeout);
-    form.setValue("unitId", unitId);
     invokeTauri<string[]>("available_ports").then((ports) => {
       if (ports.length === 0) {
         setUsbPorts([]);
         form.setValue("usbPort", "");
       }
       setUsbPorts(ports);
-      if (ports.includes(usbPort)) {
-        form.setValue("usbPort", usbPort);
-      }
-      })
+    });
   }, [open]);
 
   const handleCancel = () => {
     setOpen(false);
   };
-  */
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -73,7 +101,6 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
             Configura los parámetros de connexión modbus
           </DialogDescription>
         </DialogHeader>
-        {/*
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <FormField
@@ -178,7 +205,6 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
             </DialogFooter>
           </form>
         </Form>
-         */}
       </DialogContent>
     </Dialog>
   );
