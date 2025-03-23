@@ -23,3 +23,26 @@ pub async fn get_settings(app_state: State<'_, AppState>) -> Result<Settings> {
 
     settings_service.get_settings(&app_data_dir)
 }
+
+#[tauri::command]
+pub async fn available_ports() -> Result<Vec<String>> {
+    match serialport::available_ports() {
+        Ok(ports) => {
+            let port_names: Vec<String> = ports
+                .into_iter()
+                .filter_map(|port| match port.port_type {
+                    serialport::SerialPortType::UsbPort(_) => {
+                        if port.port_name.starts_with("/dev/tty.") {
+                            None
+                        } else {
+                            Some(port.port_name)
+                        }
+                    }
+                    _ => None,
+                })
+                .collect();
+            Ok(port_names)
+        }
+        Err(err) => Ok(vec![]),
+    }
+}
