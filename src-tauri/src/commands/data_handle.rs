@@ -46,27 +46,24 @@ pub async fn import_data(app_state: State<'_, AppState>, path: String) -> Result
             .filter_map(|cell| cell.as_f64())
             .collect();
 
-        let comp_x: Vec<f64> = row
+        let comp_x: Vec<Option<f64>> = row
             .iter()
             .skip(1 + num_plates)
             .take(num_plates)
-            .filter_map(|cell| cell.as_f64())
+            .map(|cell| cell.as_f64())
             .collect();
 
-        let comp_y: Vec<f64> = row
+        let comp_y: Vec<Option<f64>> = row
             .iter()
             .skip(1 + num_plates * 2)
             .take(num_plates)
-            .filter_map(|cell| cell.as_f64())
+            .map(|cell| cell.as_f64())
             .collect();
 
         let compositions: Vec<CompositionResult> = comp_x
             .into_iter()
             .zip(comp_y.into_iter())
-            .map(|(x, y)| CompositionResult {
-                x_1: Some(x),
-                y_1: Some(y),
-            })
+            .map(|(x, y)| CompositionResult { x_1: x, y_1: y })
             .collect();
 
         println!("Timestamp {}", timestamp);
@@ -146,7 +143,7 @@ pub async fn import_temperatures(app_state: State<'_, AppState>, path: &str) -> 
     }
     {
         let mut trasmission_guard = app_state.transmission_state.lock().await;
-        trasmission_guard.set_data_source(DataSource::Temperatures {
+        trasmission_guard.set_data_source(DataSource::Playback {
             index: 0,
             data: imported_data,
         });

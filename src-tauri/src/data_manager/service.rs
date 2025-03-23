@@ -69,7 +69,7 @@ impl DataService {
                 let num_plates = settings.number_plates;
 
                 // Interpolate temperatures
-                let inter_temps = calculation_service.interpolate_temps(
+                let inter_temps = &calculation_service.interpolate_temps(
                     num_plates,
                     temperatures[0].value as f64 / 100.0,
                     temperatures[1].value as f64 / 100.0,
@@ -77,10 +77,16 @@ impl DataService {
 
                 // Calculate compositions
                 let mut compositions = Vec::with_capacity(num_plates);
-                for &temp in &inter_temps {
+                for temp in inter_temps {
                     let composition = calculation_service
-                        .calculate_composition(None, temp, None, None)
-                        .map_err(|e| e.to_string())?;
+                        .calculate_composition(None, *temp, None, None)
+                        .unwrap_or_else(|e| {
+                            println!("{:?}", e);
+                            CompositionResult {
+                                x_1: None,
+                                y_1: None,
+                            }
+                        });
                     compositions.push(composition);
                 }
 
@@ -90,7 +96,7 @@ impl DataService {
                         .duration_since(UNIX_EPOCH)
                         .unwrap()
                         .as_secs(),
-                    temperatures: inter_temps,
+                    temperatures: inter_temps.clone(),
                     compositions,
                     percentage_complete: 0.0,
                 };

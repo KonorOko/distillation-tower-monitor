@@ -11,7 +11,7 @@ use crate::commands::data_handle::{export_data, import_data, import_temperatures
 use crate::commands::dialogs::{file_path, folder_path};
 use crate::commands::emitter::{cancel_column_data, handle_skip, send_column_data, set_speed};
 use crate::commands::modbus::{connect_modbus, disconnect_modbus};
-use crate::commands::settings::{get_settings, save_settings};
+use crate::commands::settings::{available_ports, get_settings, save_settings};
 use crate::data_manager::types::{ColumnEntry, DataSource};
 use crate::modbus::client::ModbusClient;
 use crate::modbus::service::ModbusService;
@@ -48,7 +48,7 @@ impl TransmissionState {
         TransmissionState {
             data_source,
             is_running: false,
-            speed: 500,
+            speed: 1000,
         }
     }
     pub fn start(&mut self) {
@@ -103,7 +103,8 @@ pub fn run() {
             cancel_column_data,
             handle_skip,
             set_speed,
-            import_temperatures
+            import_temperatures,
+            available_ports
         ])
         .setup(|app| {
             let app_handle = app.handle();
