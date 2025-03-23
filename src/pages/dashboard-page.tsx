@@ -12,7 +12,6 @@ import { TowerSection } from "./tower-section";
 
 export function DashboardPage() {
   const setColumnData = useData((state) => state.setColumnData);
-  const columnData = useData((state) => state.columnData);
   const setConnected = useData((state) => state.setConnected);
 
   useEffect(() => {
