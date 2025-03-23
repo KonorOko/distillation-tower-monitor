@@ -3,48 +3,66 @@ import { SettingsContext } from "@/contexts/settings-context";
 import { invokeTauri, logger } from "@/adapters/tauri";
 import { SettingsType } from "@/types";
 
+const MAX_PLATES = 8;
+const MIN_PLATES = 1;
+
+enum ErrorMessages {
+  FETCH_ERROR = "Error fetching settings: ",
+  SAVE_ERROR = "Error saving settings: ",
+  ADD_PLATE_ERROR = "Error adding plate: ",
+  REMOVE_PLATE_ERROR = "Error removing plate: ",
+}
+
 export function useSettings() {
   const { settings, setSettings } = useContext(SettingsContext);
-  const MAX_PLATES = 8;
-
-  const addPlate = async () => {
-    let newNumberPlates = Math.min(settings.numberPlates + 1, MAX_PLATES);
-    try {
-      await saveSettings({ ...settings, numberPlates: newNumberPlates });
-    } catch (error) {
-      logger.error("Error adding plate");
-    }
-  };
-
-  const removePlate = async () => {
-    let newNumberPlates = Math.max(settings.numberPlates - 1, 1);
-    try {
-      await saveSettings({ ...settings, numberPlates: newNumberPlates });
-    } catch (error) {
-      logger.error("Error removing plate");
-    }
-  };
 
   const loadSettings = async () => {
     try {
       let settings = await invokeTauri<SettingsType>("get_settings");
       setSettings(settings);
     } catch (error) {
-      logger.error("Error fetching settings");
+      logger.error(ErrorMessages.FETCH_ERROR + (error as Error).message);
+      throw new Error(ErrorMessages.FETCH_ERROR);
     }
   };
 
   const saveSettings = async (newSettings: Partial<SettingsType>) => {
-    newSettings.numberPlates =
-      newSettings.numberPlates ?? settings.numberPlates;
     try {
+      const updatedSettings = { ...settings, ...newSettings };
       await invokeTauri("save_settings", {
-        settings: { ...newSettings },
+        settings: updatedSettings,
       });
+
       await loadSettings();
     } catch (error) {
-      logger.error("Error updating settings");
-      throw error;
+      logger.error(ErrorMessages.SAVE_ERROR + (error as Error).message);
+      throw new Error(ErrorMessages.SAVE_ERROR);
+    }
+  };
+
+  const addPlate = async () => {
+    try {
+      if (settings.numberPlates < MAX_PLATES) {
+        await saveSettings({
+          numberPlates: settings.numberPlates + 1,
+        });
+      }
+    } catch (error) {
+      logger.error(ErrorMessages.ADD_PLATE_ERROR + (error as Error).message);
+      throw new Error(ErrorMessages.ADD_PLATE_ERROR);
+    }
+  };
+
+  const removePlate = async () => {
+    try {
+      if (settings.numberPlates > MIN_PLATES) {
+        await saveSettings({
+          numberPlates: settings.numberPlates - 1,
+        });
+      }
+    } catch (error) {
+      logger.error(ErrorMessages.REMOVE_PLATE_ERROR + (error as Error).message);
+      throw new Error(ErrorMessages.REMOVE_PLATE_ERROR);
     }
   };
 
@@ -55,5 +73,6 @@ export function useSettings() {
     addPlate,
     removePlate,
     MAX_PLATES,
+    MIN_PLATES,
   };
 }
