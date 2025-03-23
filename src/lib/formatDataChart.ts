@@ -4,8 +4,8 @@ import { formatTime } from "@/lib/utils";
 
 export function formatTempPerTime(columnData: ColumnDataEntry[]) {
   if (!columnData || columnData.length === 0) return [];
+  let initialDate = columnData[0].timestamp;
   const lastData = columnData.slice(-MAX_DATA_LENGTH);
-  let initialDate = lastData[0].timestamp;
 
   let formatedData = lastData.map((entry) => {
     const transcurredTime = entry.timestamp - initialDate;

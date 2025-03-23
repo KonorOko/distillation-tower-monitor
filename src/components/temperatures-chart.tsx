@@ -24,7 +24,7 @@ export function TemperaturesChart() {
       key,
       {
         label: `Plate ${key.slice(-1)}`,
-        color: `hsl(220, 100%, ${40 + index * 10}%)`,
+        color: `hsl(220, 100%, ${20 + index * 10}%)`,
       },
     ]),
   );
