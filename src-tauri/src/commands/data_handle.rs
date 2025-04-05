@@ -1,3 +1,4 @@
+use crate::calculations::service::CalculationService;
 use crate::calculations::types::CompositionResult;
 use crate::data_manager::types::{ColumnEntry, DataSource};
 use crate::AppState;
@@ -16,6 +17,7 @@ pub async fn import_data(
     info!("Importing data from {}", path);
     let mut imported_data: Vec<Arc<ColumnEntry>> = Vec::new();
     let mut workbook: Xlsx<_> = open_workbook(path).unwrap();
+    let mut x_b0 = 0.0;
     let worksheet_name = workbook
         .sheet_names()
         .first()
@@ -76,16 +78,39 @@ pub async fn import_data(
             .map(|(x, y)| CompositionResult { x_1: x, y_1: y })
             .collect();
 
+        if compositions.first().unwrap().x_1.is_some() && x_b0 == 0.0 {
+            x_b0 = compositions.first().unwrap().x_1.unwrap();
+        }
+
         println!("Timestamp {}", timestamp);
         println!("Temperatures {:?}", temperatures);
         println!("Compositions {:?}", compositions);
-        print!("\n");
+        println!("xb_0: {}", x_b0);
+        println!("");
+
+        let calculation_service = CalculationService::new();
+        let mut distilled_mass = 0.0;
+        let initial_mass = 1000.0;
+
+        if imported_data.len() > 1 && x_b0 > 0.0 {
+            let last_compositions = &imported_data.last().unwrap().compositions;
+            let x_bf = last_compositions
+                .first()
+                .unwrap()
+                .x_1
+                .unwrap_or_else(|| 0.0);
+            let x_d = last_compositions.last().unwrap().x_1.unwrap_or_else(|| 0.0);
+
+            distilled_mass =
+                calculation_service.calculate_distilled_mass(initial_mass, x_b0, x_bf, x_d);
+        }
 
         imported_data.push(Arc::new(ColumnEntry {
             timestamp,
             temperatures,
             compositions,
             percentage_complete,
+            distilled_mass,
         }));
     }
     {
@@ -152,6 +177,7 @@ pub async fn import_temperatures(app_state: State<'_, AppState>, path: &str) -> 
                 y_1: Some(0.0),
             }],
             percentage_complete,
+            distilled_mass: 0.0,
         }));
     }
     {

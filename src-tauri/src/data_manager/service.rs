@@ -20,6 +20,7 @@ impl DataService {
         &mut self,
         app_state: &State<'_, AppState>,
         number_plates: usize,
+        initial_mass: f64,
     ) -> Result<Arc<ColumnEntry>, String> {
         let transmission_state = &app_state.transmission_state;
         let transmission_guard = &mut transmission_state.lock().await;
@@ -82,6 +83,31 @@ impl DataService {
                     compositions.push(composition);
                 }
 
+                let history_guard = app_state.history.lock().await;
+                let history = &history_guard.history;
+                let mut distilled_mass = 0.0;
+
+                if history.len() > 1 {
+                    let x_b0 = history
+                        .first()
+                        .unwrap()
+                        .compositions
+                        .first()
+                        .unwrap()
+                        .x_1
+                        .unwrap_or_else(|| 0.0);
+                    let last_compositions = &history.last().unwrap().compositions;
+                    let x_bf = last_compositions
+                        .first()
+                        .unwrap()
+                        .x_1
+                        .unwrap_or_else(|| 0.0);
+                    let x_d = last_compositions.last().unwrap().x_1.unwrap_or_else(|| 0.0);
+
+                    distilled_mass =
+                        calculation_service.calculate_distilled_mass(initial_mass, x_b0, x_bf, x_d);
+                }
+
                 // Create column entry
                 let entry = ColumnEntry {
                     timestamp: SystemTime::now()
@@ -91,6 +117,7 @@ impl DataService {
                     temperatures: inter_temps.clone(),
                     compositions,
                     percentage_complete: 0.0,
+                    distilled_mass,
                 };
 
                 return Ok(Arc::new(entry));
@@ -119,6 +146,7 @@ impl DataService {
                         temperatures: current_entry.temperatures.clone(),
                         compositions,
                         percentage_complete: current_entry.percentage_complete,
+                        distilled_mass: 0.0,
                     };
                     *index += 1;
                     Ok(Arc::new(new_entry))

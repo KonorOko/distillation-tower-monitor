@@ -33,7 +33,9 @@ pub async fn send_column_data(
         };
         let mut data_service = DataService::new();
 
-        let entry = data_service.get_data(&app_state, number_plates).await?;
+        let entry = data_service
+            .get_data(&app_state, number_plates, 1000.0)
+            .await?;
 
         let mut history_guard = app_state.history.lock().await;
         history_guard.history.push(entry.clone());
