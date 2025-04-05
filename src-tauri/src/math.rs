@@ -38,6 +38,21 @@ where
     (f(x + h) - f(x - h)) / (2.0 * h)
 }
 
+pub fn integrate_trapezoidal<F>(f: F, a: f64, b: f64, n: usize) -> f64
+where
+    F: Fn(f64) -> f64,
+{
+    let h = (b - a) / n as f64;
+    let mut sum = 0.5 * (f(a) + f(b));
+
+    for k in 1..n {
+        let x = a + k as f64 * h;
+        sum += f(x);
+    }
+
+    sum * h
+}
+
 pub fn interpolate(x1: f64, y1: f64, x2: f64, y2: f64, x: f64) -> f64 {
     // Interpolate between two points using linear interpolation
     y1 + (y2 - y1) * (x - x1) / (x2 - x1)

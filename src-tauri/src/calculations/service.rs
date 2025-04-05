@@ -1,6 +1,6 @@
 use super::types::{CompositionResult, EquationParams};
 use crate::errors::Result;
-use crate::math::{interpolate, newton_raphson, round};
+use crate::math::{integrate_trapezoidal, interpolate, newton_raphson, round};
 use std::f64::consts::E;
 
 pub struct CalculationService {
@@ -41,6 +41,15 @@ impl CalculationService {
         };
 
         Ok(result)
+    }
+
+    pub fn calculate_distilled_mass(&self, m_b0: f64, x_b0: f64, x_bf: f64, x_d: f64) -> f64 {
+        let trap_num: usize = 1000;
+        let f = |x_b: f64| 1.0 / (x_d - x_b);
+        let integral_value = integrate_trapezoidal(f, x_b0, x_bf, trap_num);
+        let mass_final = m_b0 * (integral_value).exp();
+
+        mass_final
     }
 
     pub fn interpolate_temps(&self, num_plates: usize, t_1: f64, t_n: f64) -> Vec<f64> {

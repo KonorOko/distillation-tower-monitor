@@ -9,6 +9,7 @@ pub struct ColumnEntry {
     pub temperatures: Vec<f64>,
     pub compositions: Vec<CompositionResult>,
     pub percentage_complete: f64,
+    pub distilled_mass: f64,
 }
 
 #[derive(Debug, Clone)]
