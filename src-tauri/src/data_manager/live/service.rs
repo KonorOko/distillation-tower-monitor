@@ -114,7 +114,7 @@ impl DataProvider for LiveDataProvider {
         Ok(entry)
     }
 
-    async fn skip(&mut self, count: i64) -> Result<()> {
+    async fn skip(&mut self, _count: i64) -> Result<()> {
         Ok(())
     }
 

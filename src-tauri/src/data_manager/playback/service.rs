@@ -26,7 +26,7 @@ impl PlaybackDataProvider {
 }
 
 impl DataProvider for PlaybackDataProvider {
-    async fn get_next_entry(&mut self, number_plates: usize) -> Result<Arc<ColumnEntry>> {
+    async fn get_next_entry(&mut self, _number_plates: usize) -> Result<Arc<ColumnEntry>> {
         if self.data.is_empty() {
             return Err(DataError::EmptyDataError.into());
         }
