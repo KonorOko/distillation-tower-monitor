@@ -1,189 +1,191 @@
-use rodbus::{AddressRange, UnitId};
-use std::{sync::Arc, time::Duration};
-use tauri::State;
-
+use super::playback::PlaybackDataProvider;
 use super::types::{ColumnEntry, DataSource};
 use crate::calculations::service::CalculationService;
-use crate::calculations::types::CompositionResult;
+use crate::data_manager::live::LiveDataProvider;
+use crate::data_manager::provider::DataProvider;
+use crate::errors::Result;
 use crate::modbus::{client::ModbusClient, service::ModbusService};
-use crate::AppState;
-use std::time::{SystemTime, UNIX_EPOCH};
+use rodbus::client::Channel;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
-pub struct DataService;
+pub trait DataProviderFactory: Send + Sync {
+    async fn create_provider(&self, data_source: &DataSource) -> Result<DataProviderEnum>;
+}
 
-impl DataService {
-    pub fn new() -> Self {
-        DataService
-    }
+#[derive(Debug)]
+pub enum DataProviderEnum {
+    Playback(PlaybackDataProvider),
+    Live(LiveDataProvider),
+    Temperature(PlaybackDataProvider),
+}
 
-    pub async fn get_data(
-        &mut self,
-        app_state: &State<'_, AppState>,
-        number_plates: usize,
-        initial_mass: f64,
-    ) -> Result<Arc<ColumnEntry>, String> {
-        let transmission_state = &app_state.transmission_state;
-        let transmission_guard = &mut transmission_state.lock().await;
-        let data_source = &mut transmission_guard.data_source;
-        match &mut *data_source {
-            DataSource::Playback { index, data } => {
-                if let Some(entry) = data.get(*index as usize) {
-                    let current_entry = entry.clone();
-                    *index += 1;
-                    Ok(current_entry)
-                } else {
-                    return Err("No more data".to_string());
-                }
-            }
-            DataSource::Live => {
-                // Initialize services
-                let modbus_client = ModbusClient::new();
-                let modbus_service = ModbusService::new(modbus_client);
-                let calculation_service = CalculationService::new();
-
-                // Get channel
-                let mut channel = app_state.modbus_channel.lock().await;
-
-                // Modbus parameters
-                let param = rodbus::client::RequestParam {
-                    id: UnitId::new(10),
-                    response_timeout: Duration::from_millis(1000),
-                };
-                let address_range = AddressRange::try_from(100, 2).unwrap();
-
-                let mut channel = channel
-                    .as_mut()
-                    .ok_or("Failed to acquire modbus channel lock")?;
-
-                // Read modbus data
-                let temperatures = modbus_service
-                    .read_holding_registers(&mut channel, param, address_range)
-                    .await
-                    .map_err(|e| e.to_string())?;
-
-                // Interpolate temperatures
-                let inter_temps = &calculation_service.interpolate_temps(
-                    number_plates,
-                    temperatures[0].value as f64 / 100.0,
-                    temperatures[1].value as f64 / 100.0,
-                );
-
-                // Calculate compositions
-                let mut compositions = Vec::with_capacity(number_plates);
-                for temp in inter_temps {
-                    let composition = calculation_service
-                        .calculate_composition(None, *temp, None, None)
-                        .unwrap_or_else(|e| {
-                            println!("{:?}", e);
-                            CompositionResult {
-                                x_1: None,
-                                y_1: None,
-                            }
-                        });
-                    compositions.push(composition);
-                }
-
-                let history_guard = app_state.history.lock().await;
-                let history = &history_guard.history;
-                let mut distilled_mass = 0.0;
-
-                if history.len() > 1 {
-                    let x_b0 = history
-                        .first()
-                        .unwrap()
-                        .compositions
-                        .first()
-                        .unwrap()
-                        .x_1
-                        .unwrap_or_else(|| 0.0);
-                    let last_compositions = &history.last().unwrap().compositions;
-                    let x_bf = last_compositions
-                        .first()
-                        .unwrap()
-                        .x_1
-                        .unwrap_or_else(|| 0.0);
-                    let x_d = last_compositions.last().unwrap().x_1.unwrap_or_else(|| 0.0);
-
-                    distilled_mass =
-                        calculation_service.calculate_distilled_mass(initial_mass, x_b0, x_bf, x_d);
-                }
-
-                // Create column entry
-                let entry = ColumnEntry {
-                    timestamp: SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap()
-                        .as_secs(),
-                    temperatures: inter_temps.clone(),
-                    compositions,
-                    percentage_complete: 0.0,
-                    distilled_mass,
-                };
-
-                return Ok(Arc::new(entry));
-            }
-            DataSource::Temperatures { index, data } => {
-                if let Some(entry) = data.get(*index as usize) {
-                    let current_entry = entry.clone();
-                    let calculation_service = CalculationService::new();
-                    let temps = &current_entry.temperatures;
-                    let mut compositions = Vec::new();
-                    for temp in temps {
-                        let composition = calculation_service
-                            .calculate_composition(None, *temp, None, None)
-                            .unwrap_or_else(|e| {
-                                println!("{:?}", e);
-                                CompositionResult {
-                                    x_1: None,
-                                    y_1: None,
-                                }
-                            });
-                        compositions.push(composition);
-                    }
-
-                    let new_entry = ColumnEntry {
-                        timestamp: current_entry.timestamp,
-                        temperatures: current_entry.temperatures.clone(),
-                        compositions,
-                        percentage_complete: current_entry.percentage_complete,
-                        distilled_mass: 0.0,
-                    };
-                    *index += 1;
-                    Ok(Arc::new(new_entry))
-                } else {
-                    return Err("No more data".to_string());
-                }
-            }
+impl DataProviderEnum {
+    pub async fn get_next_entry(&mut self, number_plates: usize) -> Result<Arc<ColumnEntry>> {
+        match self {
+            Self::Playback(provider) => provider.get_next_entry(number_plates).await,
+            Self::Live(provider) => provider.get_next_entry(number_plates).await,
+            Self::Temperature(provider) => provider.get_next_entry(number_plates).await,
         }
     }
 
-    pub async fn skip_data(
-        &self,
-        app_state: &State<'_, AppState>,
-        skip_count: i64,
-    ) -> Result<(), String> {
-        let transmission_state = &app_state.transmission_state;
-        let trasmission_guard = &mut transmission_state.lock().await;
-        let data_source = &mut trasmission_guard.data_source;
+    pub async fn skip(&mut self, count: i64) -> Result<()> {
+        match self {
+            Self::Playback(provider) => provider.skip(count).await,
+            Self::Live(provider) => provider.skip(count).await,
+            Self::Temperature(provider) => provider.skip(count).await,
+        }
+    }
 
-        match &mut *data_source {
-            DataSource::Live => {}
-            DataSource::Temperatures { index, data } => {}
-            DataSource::Playback { index, data } => {
-                if data.is_empty() {
-                    return Err("No data available".to_string());
-                }
+    pub async fn reset(&mut self) -> Result<()> {
+        match self {
+            Self::Playback(provider) => provider.reset().await,
+            Self::Live(provider) => provider.reset().await,
+            Self::Temperature(provider) => provider.reset().await,
+        }
+    }
 
-                let new_index = if skip_count.is_negative() {
-                    index.saturating_sub(skip_count.unsigned_abs())
-                } else {
-                    index
-                        .saturating_add(skip_count as u64)
-                        .min(data.len() as u64 - 1)
-                };
+    pub fn get_current_index(&self) -> usize {
+        match self {
+            Self::Playback(provider) => provider.get_current_index(),
+            Self::Live(provider) => provider.get_current_index(),
+            Self::Temperature(provider) => provider.get_current_index(),
+        }
+    }
+}
 
-                *index = new_index;
+pub struct AppDataProviderFactory {
+    calculation_service: Arc<CalculationService>,
+    modbus_channel: Arc<Mutex<Option<Channel>>>,
+}
+
+impl AppDataProviderFactory {
+    pub fn new(
+        calculation_service: Arc<CalculationService>,
+        modbus_channel: Arc<Mutex<Option<Channel>>>,
+    ) -> Self {
+        Self {
+            calculation_service,
+            modbus_channel,
+        }
+    }
+}
+
+impl DataProviderFactory for AppDataProviderFactory {
+    async fn create_provider(&self, data_source: &DataSource) -> Result<DataProviderEnum> {
+        match data_source {
+            DataSource::Live => {
+                let modbus_client = ModbusClient::new();
+                let modbus_service = Arc::new(ModbusService::new(modbus_client));
+                Ok(DataProviderEnum::Live(LiveDataProvider::new(
+                    self.modbus_channel.clone(),
+                    self.calculation_service.clone(),
+                    modbus_service,
+                )))
             }
+            DataSource::Playback {
+                current_index,
+                data,
+            } => Ok(DataProviderEnum::Playback(
+                PlaybackDataProvider::with_index(data.clone(), *current_index as usize),
+            )),
+            DataSource::Temperatures {
+                current_index,
+                data,
+            } => Ok(DataProviderEnum::Temperature(
+                PlaybackDataProvider::with_index(data.clone(), *current_index as usize),
+            )),
+        }
+    }
+}
+
+pub struct DataService {
+    calculation_service: Arc<CalculationService>,
+    modbus_channel: Arc<Mutex<Option<Channel>>>,
+}
+
+impl DataService {
+    pub fn new(
+        calculation_service: Arc<CalculationService>,
+        modbus_channel: Arc<Mutex<Option<Channel>>>,
+    ) -> Self {
+        Self {
+            calculation_service,
+            modbus_channel,
+        }
+    }
+
+    async fn create_provider(&self, data_source: &mut DataSource) -> Result<DataProviderEnum> {
+        match data_source {
+            DataSource::Live => {
+                let modbus_client = ModbusClient::new();
+                let modbus_service = Arc::new(ModbusService::new(modbus_client));
+
+                Ok(DataProviderEnum::Live(LiveDataProvider::new(
+                    self.modbus_channel.clone(),
+                    self.calculation_service.clone(),
+                    modbus_service,
+                )))
+            }
+            DataSource::Playback {
+                current_index,
+                data,
+            } => Ok(DataProviderEnum::Playback(
+                PlaybackDataProvider::with_index(data.clone(), *current_index as usize),
+            )),
+            DataSource::Temperatures {
+                current_index,
+                data,
+            } => Ok(DataProviderEnum::Temperature(
+                PlaybackDataProvider::with_index(data.clone(), *current_index as usize),
+            )),
+        }
+    }
+
+    pub async fn get_next_entry(
+        &self,
+        data_source: &mut DataSource,
+        number_plates: usize,
+    ) -> Result<Arc<ColumnEntry>> {
+        let mut provider = self.create_provider(data_source).await?;
+        let entry = provider.get_next_entry(number_plates).await?;
+
+        // Actualizar el índice en la fuente de datos
+        match data_source {
+            DataSource::Playback { current_index, .. } => {
+                *current_index = provider.get_current_index()
+            }
+            DataSource::Temperatures { current_index, .. } => {
+                *current_index = provider.get_current_index()
+            }
+            _ => {}
+        }
+
+        Ok(entry)
+    }
+
+    pub async fn skip(&self, data_source: &mut DataSource, skip_count: i64) -> Result<()> {
+        let mut provider = self.create_provider(data_source).await?;
+        provider.skip(skip_count).await?;
+
+        match data_source {
+            DataSource::Playback { current_index, .. } => {
+                *current_index = provider.get_current_index()
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+
+    pub async fn reset(&self, data_source: &mut DataSource) -> Result<()> {
+        let mut provider = self.create_provider(data_source).await?;
+        provider.reset().await?;
+
+        match data_source {
+            DataSource::Playback { current_index, .. } => *current_index = 0,
+            DataSource::Temperatures { current_index, .. } => *current_index = 0,
+            _ => {}
         }
 
         Ok(())

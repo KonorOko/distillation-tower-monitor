@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug)]
 pub struct EquationParams {
     pub a_1: f64,
     pub b_1: f64,

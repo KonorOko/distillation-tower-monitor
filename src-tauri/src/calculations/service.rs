@@ -3,6 +3,7 @@ use crate::errors::Result;
 use crate::math::{integrate_trapezoidal, interpolate, newton_raphson, round};
 use std::f64::consts::E;
 
+#[derive(Debug)]
 pub struct CalculationService {
     params: EquationParams,
 }

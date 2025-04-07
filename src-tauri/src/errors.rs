@@ -15,6 +15,8 @@ pub enum Error {
     RootError(#[from] RootError),
     #[error("Data error")]
     DataError(#[from] DataError),
+    #[error("Import error")]
+    ImportError(#[from] ImportError),
 }
 
 #[derive(Debug, Error, Serialize, Deserialize)]
@@ -76,11 +78,21 @@ pub enum RootError {
 }
 
 #[derive(Error, Serialize, Debug, Deserialize)]
+pub enum ImportError {
+    #[error("Invalid format {0}")]
+    InvalidFormat(String),
+}
+
+#[derive(Error, Serialize, Debug, Deserialize)]
 pub enum DataError {
     #[error("Data empty")]
     EmptyDataError,
     #[error("No more data")]
     NoMoreDataError,
+    #[error("No data")]
+    NoDataError,
+    #[error("Data error {0}")]
+    CustomError(String),
 }
 
 impl From<Error> for String {

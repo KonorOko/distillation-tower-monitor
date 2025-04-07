@@ -30,7 +30,7 @@ export function Header({ className }: { className?: string }) {
       toast.promise(
         invokeTauri("connect_modbus").then(() => {
           setConnected("modbus");
-          invokeTauri("send_column_data");
+          invokeTauri("send_column_data", { numberPlates: 8 });
         }),
         {
           loading: "Connecting to MODBUS...",
