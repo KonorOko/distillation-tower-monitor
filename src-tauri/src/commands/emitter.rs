@@ -1,4 +1,5 @@
 use log::info;
+use std::time::Instant;
 use tauri::{AppHandle, Emitter};
 use tokio::time::Duration;
 
@@ -19,6 +20,8 @@ pub async fn send_column_data(
     }
 
     loop {
+        let start_time = Instant::now();
+
         let (speed, entry) = {
             let mut transmission_guard = app_state.transmission_state.lock().await;
             print!("\n------------------------\n");
@@ -42,6 +45,8 @@ pub async fn send_column_data(
             history_guard.history.push(entry.clone());
         }
 
+        let elapsed_time = start_time.elapsed();
+        println!("Elapsed time: {:?} ms", elapsed_time.as_millis());
         println!("\nSending: {:?}", entry);
         app_handle
             .emit("column_data", entry)
@@ -55,7 +60,7 @@ pub async fn send_column_data(
 pub async fn cancel_column_data(app_state: State<'_, AppState>) -> Result<(), String> {
     println!("Canceling column data");
     let mut transmission_state = app_state.transmission_state.lock().await;
-    transmission_state.reset();
+    transmission_state.reset().await?;
 
     let mut history_guard = app_state.history.lock().await;
     history_guard.history.clear();
