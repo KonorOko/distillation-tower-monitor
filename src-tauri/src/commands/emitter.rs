@@ -46,7 +46,7 @@ pub async fn send_column_data(
         }
 
         let elapsed_time = start_time.elapsed();
-        println!("Elapsed time: {:?} ms", elapsed_time.as_millis());
+        println!("Elapsed time: {:?}", elapsed_time);
         println!("\nSending: {:?}", entry);
         app_handle
             .emit("column_data", entry)
