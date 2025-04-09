@@ -69,6 +69,10 @@ impl DataProvider for PlaybackDataProvider {
         self.current_index
     }
 
+    async fn disconnect(&self) -> Result<()> {
+        Ok(())
+    }
+
     fn clone_provider(&self) -> Box<dyn DataProvider + Send> {
         Box::new(Self {
             data: self.data.clone(),

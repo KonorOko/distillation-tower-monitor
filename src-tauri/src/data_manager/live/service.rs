@@ -129,6 +129,14 @@ impl DataProvider for LiveDataProvider {
         0
     }
 
+    async fn disconnect(&self) -> Result<()> {
+        let mut channel_guard = self.modbus_channel.lock().await;
+        if let Some(channel) = channel_guard.take() {
+            self.modbus_service.disconnect(channel).await?;
+        }
+        Ok(())
+    }
+
     fn clone_provider(&self) -> Box<dyn DataProvider + Send> {
         Box::new(Self {
             calculation_service: self.calculation_service.clone(),

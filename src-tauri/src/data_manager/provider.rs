@@ -9,5 +9,6 @@ pub trait DataProvider {
     fn skip(&mut self, count: i64) -> Result<()>;
     fn reset(&mut self) -> Result<()>;
     fn get_current_index(&self) -> usize;
+    async fn disconnect(&self) -> Result<()>;
     fn clone_provider(&self) -> Box<dyn DataProvider + Send>;
 }
