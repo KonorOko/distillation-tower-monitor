@@ -12,10 +12,11 @@ use crate::commands::dialogs::{file_path, folder_path};
 use crate::commands::emitter::{cancel_column_data, handle_skip, send_column_data, set_speed};
 use crate::commands::modbus::{connect_modbus, disconnect_modbus};
 use crate::commands::settings::{available_ports, get_settings, save_settings};
-use crate::data_manager::types::{ColumnEntry, DataSource};
+use crate::data_manager::types::ColumnEntry;
 use crate::modbus::client::ModbusClient;
 use crate::modbus::service::ModbusService;
 use data_manager::factory::ProviderFactory;
+use data_manager::provider::DataProvider;
 use log::info;
 use rodbus::client::Channel;
 use settings::types::Settings;
@@ -37,17 +38,26 @@ pub struct History {
     pub history: Vec<Arc<ColumnEntry>>,
 }
 
-#[derive(Clone)]
 pub struct TransmissionState {
-    pub data_source: DataSource,
+    pub data_provider: Box<dyn DataProvider + Send>,
     pub is_running: bool,
     pub speed: u64,
 }
 
+impl Clone for TransmissionState {
+    fn clone(&self) -> Self {
+        Self {
+            data_provider: self.data_provider.clone_provider(),
+            is_running: self.is_running,
+            speed: self.speed,
+        }
+    }
+}
+
 impl TransmissionState {
-    pub fn new(data_source: DataSource) -> Self {
+    pub fn new(data_provider: Box<dyn DataProvider + Send>) -> Self {
         TransmissionState {
-            data_source,
+            data_provider,
             is_running: false,
             speed: 1000,
         }
@@ -62,8 +72,8 @@ impl TransmissionState {
         self.is_running = !self.is_running;
     }
 
-    pub fn set_data_source(&mut self, data_source: DataSource) {
-        self.data_source = data_source;
+    pub fn set_data_provider(&mut self, data_provider: Box<dyn DataProvider + Send>) {
+        self.data_provider = data_provider;
     }
 
     pub fn set_is_running(&mut self, is_running: bool) {
@@ -71,7 +81,7 @@ impl TransmissionState {
     }
 
     pub fn reset(&mut self) {
-        self.data_source.provider.reset().unwrap();
+        self.data_provider.reset().unwrap();
         self.is_running = false;
     }
 
@@ -134,9 +144,7 @@ pub fn run() {
             let provider = provider_factory.create_playback_provider(vec![], 0);
             // Initialize the app state
             let app_state = AppState {
-                transmission_state: Arc::new(Mutex::new(TransmissionState::new(DataSource {
-                    provider,
-                }))),
+                transmission_state: Arc::new(Mutex::new(TransmissionState::new(provider))),
                 history: Arc::new(Mutex::new(History::default())),
                 modbus_channel: Arc::new(Mutex::new(None)),
                 settings_path,

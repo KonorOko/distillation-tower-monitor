@@ -1,5 +1,4 @@
 use crate::data_manager::import_export::ExcelDataImporter;
-use crate::data_manager::types::DataSource;
 use crate::AppState;
 use crate::{calculations::service::CalculationService, data_manager::factory::ProviderFactory};
 use log::info;
@@ -23,7 +22,7 @@ pub async fn import_data(
 
     {
         let mut transmission_guard = app_state.transmission_state.lock().await;
-        transmission_guard.set_data_source(DataSource { provider });
+        transmission_guard.set_data_provider(provider);
     }
 
     app_handle

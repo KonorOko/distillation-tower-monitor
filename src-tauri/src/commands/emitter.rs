@@ -31,8 +31,7 @@ pub async fn send_column_data(
             println!("Speed: {}", transmission_guard.speed);
 
             let entry = transmission_guard
-                .data_source
-                .provider
+                .data_provider
                 .get_next_entry(number_plates)
                 .await?;
 
@@ -68,7 +67,7 @@ pub async fn cancel_column_data(app_state: State<'_, AppState>) -> Result<(), St
 pub async fn handle_skip(app_state: State<'_, AppState>, skip_count: i64) -> Result<(), String> {
     info!("Handling skip {} seconds", skip_count);
     let mut transmission_guard = app_state.transmission_state.lock().await;
-    transmission_guard.data_source.provider.skip(skip_count)?;
+    transmission_guard.data_provider.skip(skip_count)?;
     Ok(())
 }
 

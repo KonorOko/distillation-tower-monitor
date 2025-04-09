@@ -4,9 +4,9 @@ use crate::calculations::service::CalculationService;
 use crate::data_manager::factory::ProviderFactory;
 use crate::errors::{ModbusError, Result};
 use crate::settings::SettingsService;
+use crate::AppState;
 use crate::ModbusClient;
 use crate::ModbusService;
-use crate::{AppState, DataSource};
 use log::error;
 use tauri::State;
 use tokio::sync::Mutex;
@@ -32,7 +32,7 @@ pub async fn connect_modbus(app_state: State<'_, AppState>) -> Result<()> {
     );
 
     let mut transmission_guard = app_state.transmission_state.lock().await;
-    transmission_guard.set_data_source(DataSource { provider });
+    transmission_guard.set_data_provider(provider);
     transmission_guard.start();
 
     Ok(())
