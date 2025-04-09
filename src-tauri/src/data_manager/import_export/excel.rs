@@ -177,7 +177,7 @@ impl ExcelDataImporter {
             if imported_data.len() > 0 && x_b0 > 0.0 {
                 if let Some(first_comp) = compositions.first() {
                     if let Some(last_comp) = compositions.last() {
-                        if let (Some(x_bf), Some(x_d)) = (first_comp.x_1, last_comp.x_1) {
+                        if let (Some(x_bf), Some(x_d)) = (first_comp.x_1, last_comp.y_1) {
                             distilled_mass = self.calculation_service.calculate_distilled_mass(
                                 initial_mass,
                                 x_b0,

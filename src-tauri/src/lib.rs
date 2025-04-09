@@ -15,6 +15,7 @@ use crate::commands::settings::{available_ports, get_settings, save_settings};
 use crate::data_manager::types::{ColumnEntry, DataSource};
 use crate::modbus::client::ModbusClient;
 use crate::modbus::service::ModbusService;
+use data_manager::factory::ProviderFactory;
 use log::info;
 use rodbus::client::Channel;
 use settings::types::Settings;
@@ -23,7 +24,7 @@ use std::sync::Arc;
 use tauri::Manager;
 use tokio::sync::Mutex;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AppState {
     transmission_state: Arc<Mutex<TransmissionState>>,
     history: Arc<Mutex<History>>,
@@ -36,7 +37,7 @@ pub struct History {
     pub history: Vec<Arc<ColumnEntry>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct TransmissionState {
     pub data_source: DataSource,
     pub is_running: bool,
@@ -70,7 +71,7 @@ impl TransmissionState {
     }
 
     pub fn reset(&mut self) {
-        self.data_source = DataSource::Live;
+        self.data_source.provider.reset().unwrap();
         self.is_running = false;
     }
 
@@ -129,9 +130,13 @@ pub fn run() {
                 });
             info!("Initial settings: {:?}", settings);
 
+            let provider_factory = ProviderFactory::new();
+            let provider = provider_factory.create_playback_provider(vec![], 0);
             // Initialize the app state
             let app_state = AppState {
-                transmission_state: Arc::new(Mutex::new(TransmissionState::new(DataSource::Live))),
+                transmission_state: Arc::new(Mutex::new(TransmissionState::new(DataSource {
+                    provider,
+                }))),
                 history: Arc::new(Mutex::new(History::default())),
                 modbus_channel: Arc::new(Mutex::new(None)),
                 settings_path,

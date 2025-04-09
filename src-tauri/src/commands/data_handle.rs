@@ -1,8 +1,7 @@
-use crate::calculations::service::CalculationService;
 use crate::data_manager::import_export::ExcelDataImporter;
 use crate::data_manager::types::DataSource;
 use crate::AppState;
-use calamine::Reader;
+use crate::{calculations::service::CalculationService, data_manager::factory::ProviderFactory};
 use log::info;
 use rust_xlsxwriter::{Workbook, XlsxError};
 use tauri::{AppHandle, Emitter, State};
@@ -19,12 +18,12 @@ pub async fn import_data(
 
     let (number_plates, imported_data) = importer.import(&path).await.map_err(|e| e.to_string())?;
 
+    let provider_factory = ProviderFactory::new();
+    let provider = provider_factory.create_playback_provider(imported_data, 0);
+
     {
         let mut transmission_guard = app_state.transmission_state.lock().await;
-        transmission_guard.set_data_source(DataSource::Playback {
-            current_index: 0,
-            data: imported_data,
-        });
+        transmission_guard.set_data_source(DataSource { provider });
     }
 
     app_handle
@@ -35,30 +34,9 @@ pub async fn import_data(
 }
 
 #[tauri::command]
-pub async fn import_temperatures(
-    app_handle: AppHandle,
-    app_state: State<'_, AppState>,
-    path: &str,
-) -> Result<(), String> {
+pub async fn import_temperatures(path: &str) -> Result<(), String> {
     info!("Importing data from {}", path);
-    let calculation_service = CalculationService::new();
-    let importer = ExcelDataImporter::new(calculation_service);
-
-    let (number_plates, imported_data) = importer.import(path).await.map_err(|e| e.to_string())?;
-
-    {
-        let mut trasmission_guard = app_state.transmission_state.lock().await;
-        trasmission_guard.set_data_source(DataSource::Playback {
-            current_index: 0,
-            data: imported_data,
-        });
-    }
-
-    app_handle
-        .emit("number_plates", number_plates)
-        .map_err(|e| e.to_string())?;
-
-    Ok(())
+    todo!()
 }
 
 #[tauri::command]

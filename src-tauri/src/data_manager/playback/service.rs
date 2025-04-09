@@ -1,6 +1,7 @@
 use crate::data_manager::provider::DataProvider;
 use crate::data_manager::types::ColumnEntry;
 use crate::errors::{DataError, Result};
+use async_trait::async_trait;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -25,6 +26,7 @@ impl PlaybackDataProvider {
     }
 }
 
+#[async_trait]
 impl DataProvider for PlaybackDataProvider {
     async fn get_next_entry(&mut self, _number_plates: usize) -> Result<Arc<ColumnEntry>> {
         if self.data.is_empty() {
@@ -40,7 +42,7 @@ impl DataProvider for PlaybackDataProvider {
         Ok(entry)
     }
 
-    async fn skip(&mut self, count: i64) -> Result<()> {
+    fn skip(&mut self, count: i64) -> Result<()> {
         if self.data.is_empty() {
             return Err(DataError::EmptyDataError.into());
         }
@@ -58,12 +60,19 @@ impl DataProvider for PlaybackDataProvider {
         Ok(())
     }
 
-    async fn reset(&mut self) -> Result<()> {
+    fn reset(&mut self) -> Result<()> {
         self.current_index = 0;
         Ok(())
     }
 
     fn get_current_index(&self) -> usize {
         self.current_index
+    }
+
+    fn clone_provider(&self) -> Box<dyn DataProvider + Send> {
+        Box::new(Self {
+            data: self.data.clone(),
+            current_index: self.current_index,
+        })
     }
 }

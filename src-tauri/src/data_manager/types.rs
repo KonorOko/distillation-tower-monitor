@@ -1,6 +1,7 @@
 use crate::calculations::types::CompositionResult;
 use serde::Serialize;
-use std::sync::Arc;
+
+use super::provider::DataProvider;
 
 #[derive(Default, Clone, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -12,32 +13,14 @@ pub struct ColumnEntry {
     pub distilled_mass: f64,
 }
 
-#[derive(Debug, Clone)]
-pub enum DataSource {
-    Live,
-    Playback {
-        current_index: usize,
-        data: Vec<Arc<ColumnEntry>>,
-    },
-    Temperatures {
-        current_index: usize,
-        data: Vec<Arc<ColumnEntry>>,
-    },
+pub struct DataSource {
+    pub provider: Box<dyn DataProvider + Send>,
 }
 
-impl DataSource {
-    pub fn update_index(&mut self, index: usize) {
-        match self {
-            DataSource::Playback { current_index, .. } => *current_index = index,
-            DataSource::Temperatures { current_index, .. } => *current_index = index,
-            _ => {}
-        }
-    }
-    pub fn get_current_entry(&self) -> Option<usize> {
-        match self {
-            DataSource::Playback { current_index, .. } => Some(*current_index),
-            DataSource::Temperatures { current_index, .. } => Some(*current_index),
-            _ => None,
+impl Clone for DataSource {
+    fn clone(&self) -> Self {
+        Self {
+            provider: self.provider.clone_provider(),
         }
     }
 }

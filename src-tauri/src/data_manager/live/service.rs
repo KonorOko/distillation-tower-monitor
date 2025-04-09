@@ -5,6 +5,7 @@ use crate::data_manager::types::ColumnEntry;
 use crate::errors::{DataError, Result};
 use crate::modbus::client::ModbusClient;
 use crate::modbus::service::ModbusService;
+use async_trait::async_trait;
 use rodbus::client::Channel;
 use rodbus::{AddressRange, UnitId};
 use std::sync::Arc;
@@ -34,6 +35,7 @@ impl LiveDataProvider {
     }
 }
 
+#[async_trait]
 impl DataProvider for LiveDataProvider {
     async fn get_next_entry(&mut self, number_plates: usize) -> Result<Arc<ColumnEntry>> {
         let initial_mass = 1000.0;
@@ -85,7 +87,7 @@ impl DataProvider for LiveDataProvider {
                     if let (Some(x_b0), Some(x_bf), Some(x_d)) = (
                         first_comp.x_1,
                         last_entry.compositions.first().and_then(|c| c.x_1),
-                        last_comp.x_1,
+                        last_comp.y_1,
                     ) {
                         distilled_mass = self.calculation_service.calculate_distilled_mass(
                             initial_mass,
@@ -114,16 +116,25 @@ impl DataProvider for LiveDataProvider {
         Ok(entry)
     }
 
-    async fn skip(&mut self, _count: i64) -> Result<()> {
+    fn skip(&mut self, _count: i64) -> Result<()> {
         Ok(())
     }
 
-    async fn reset(&mut self) -> Result<()> {
+    fn reset(&mut self) -> Result<()> {
         self.history.clear();
         Ok(())
     }
 
     fn get_current_index(&self) -> usize {
         0
+    }
+
+    fn clone_provider(&self) -> Box<dyn DataProvider + Send> {
+        Box::new(Self {
+            calculation_service: self.calculation_service.clone(),
+            history: self.history.clone(),
+            modbus_channel: self.modbus_channel.clone(),
+            modbus_service: self.modbus_service.clone(),
+        })
     }
 }
