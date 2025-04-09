@@ -80,9 +80,10 @@ impl TransmissionState {
         self.is_running = is_running;
     }
 
-    pub fn reset(&mut self) {
-        self.data_provider.reset().unwrap();
+    pub async fn reset(&mut self) -> Result<(), String> {
+        self.data_provider.reset()?;
         self.is_running = false;
+        Ok(())
     }
 
     pub fn set_speed(&mut self, speed: u64) {
