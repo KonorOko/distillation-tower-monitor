@@ -22,7 +22,8 @@ type CommandType =
   | "pause_column_data"
   | "handle_skip"
   | "set_speed"
-  | "import_temperatures";
+  | "import_temperatures"
+  | "toggle_column_data";
 
 export const invokeTauri = async <T>(
   command: CommandType,

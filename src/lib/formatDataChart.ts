@@ -58,3 +58,20 @@ export function formatXYvsTemp(columnData: ColumnDataEntry[]) {
 
   return data.reverse();
 }
+
+export function formatDistillationChart(columnData: ColumnDataEntry[]) {
+  if (!columnData || columnData.length === 0) return [];
+  let initialDate = columnData[0].timestamp;
+  const lastData = columnData.slice(-MAX_DATA_LENGTH);
+
+  let formatedData = lastData.map((entry) => {
+    const transcurredTime = entry.timestamp - initialDate;
+    const formattedTime = formatTime(transcurredTime);
+    return {
+      time: formattedTime,
+      distilledMass: entry.distilledMass,
+    };
+  });
+
+  return formatedData;
+}

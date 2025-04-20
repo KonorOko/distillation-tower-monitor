@@ -9,7 +9,9 @@ mod settings;
 
 use crate::commands::data_handle::{export_data, import_data, import_temperatures};
 use crate::commands::dialogs::{file_path, folder_path};
-use crate::commands::emitter::{cancel_column_data, handle_skip, send_column_data, set_speed};
+use crate::commands::emitter::{
+    cancel_column_data, handle_skip, send_column_data, set_speed, toggle_column_data,
+};
 use crate::commands::modbus::{connect_modbus, disconnect_modbus};
 use crate::commands::settings::{available_ports, get_settings, save_settings};
 use crate::data_manager::types::ColumnEntry;
@@ -41,6 +43,7 @@ pub struct History {
 pub struct TransmissionState {
     pub data_provider: Box<dyn DataProvider + Send>,
     pub is_running: bool,
+    pub is_paused: bool,
     pub speed: u64,
 }
 
@@ -49,6 +52,7 @@ impl Clone for TransmissionState {
         Self {
             data_provider: self.data_provider.clone_provider(),
             is_running: self.is_running,
+            is_paused: self.is_paused,
             speed: self.speed,
         }
     }
@@ -59,17 +63,20 @@ impl TransmissionState {
         TransmissionState {
             data_provider,
             is_running: false,
+            is_paused: false,
             speed: 1000,
         }
     }
     pub fn start(&mut self) {
         self.is_running = true;
+        self.is_paused = false;
     }
     pub fn stop(&mut self) {
         self.is_running = false;
+        self.is_paused = false;
     }
     pub fn toggle(&mut self) {
-        self.is_running = !self.is_running;
+        self.is_paused = !self.is_paused;
     }
 
     pub fn set_data_provider(&mut self, data_provider: Box<dyn DataProvider + Send>) {
@@ -80,9 +87,15 @@ impl TransmissionState {
         self.is_running = is_running;
     }
 
+    pub fn set_is_paused(&mut self, is_paused: bool) {
+        self.is_paused = is_paused;
+    }
+
     pub async fn reset(&mut self) -> Result<(), String> {
         self.data_provider.reset()?;
         self.is_running = false;
+        self.is_paused = false;
+        self.speed = 1000;
         Ok(())
     }
 
@@ -116,7 +129,8 @@ pub fn run() {
             handle_skip,
             set_speed,
             import_temperatures,
-            available_ports
+            available_ports,
+            toggle_column_data
         ])
         .setup(|app| {
             let app_handle = app.handle();

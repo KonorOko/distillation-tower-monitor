@@ -7,6 +7,7 @@ import { ExportDialog } from "./export-dialog";
 import { FilePlayer } from "./file-player";
 import { SettingsDialog } from "./settings-dialog";
 import { StatusLed } from "./ui/status-led";
+import { cn } from "@/lib/utils";
 
 export function Header({ className }: { className?: string }) {
   const connected = useData((state) => state.connected);
@@ -61,7 +62,11 @@ export function Header({ className }: { className?: string }) {
           </SettingsDialog>
           <Button
             variant={"outline"}
-            className="rounded-none border-x-0"
+            className={cn(
+              "rounded-none border-x-0",
+              connected === "modbus" && "bg-red-500",
+            )}
+            disabled={connected === "file"}
             onClick={handleConnection}
           >
             <Power className="h-4 w-4" />
@@ -70,7 +75,7 @@ export function Header({ className }: { className?: string }) {
           <ExportDialog>
             <Button
               variant={"outline"}
-              disabled={connected !== "modbus"}
+              disabled={connected === "file"}
               className="rounded-l-none"
             >
               <Save className="h-4 w-4" />

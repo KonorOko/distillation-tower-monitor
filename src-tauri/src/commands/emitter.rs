@@ -26,12 +26,16 @@ pub async fn send_column_data(
             let mut transmission_guard = app_state.transmission_state.lock().await;
             print!("\n------------------------\n");
             println!("\nTransmission state: {:?}", transmission_guard.is_running);
+            println!("Paused: {}", transmission_guard.is_paused);
+            println!("Speed: {}", transmission_guard.speed);
 
             if !transmission_guard.is_running {
                 return Ok(());
             }
 
-            println!("Speed: {}", transmission_guard.speed);
+            if transmission_guard.is_paused {
+                continue;
+            }
 
             let entry = transmission_guard
                 .data_provider
@@ -57,8 +61,23 @@ pub async fn send_column_data(
 }
 
 #[tauri::command]
+pub async fn toggle_column_data(app_state: State<'_, AppState>) -> Result<String, String> {
+    info!("Toggling column data");
+    let mut transmission_state = app_state.transmission_state.lock().await;
+    transmission_state.toggle();
+
+    let is_paused = transmission_state.is_paused;
+
+    if is_paused {
+        Ok("paused".to_string())
+    } else {
+        Ok("running".to_string())
+    }
+}
+
+#[tauri::command]
 pub async fn cancel_column_data(app_state: State<'_, AppState>) -> Result<(), String> {
-    println!("Canceling column data");
+    info!("Canceling column data");
     let mut transmission_state = app_state.transmission_state.lock().await;
     transmission_state.reset().await?;
 

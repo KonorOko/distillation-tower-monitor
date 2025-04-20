@@ -29,4 +29,5 @@ type ColumnDataEntry = {
   temperatures: number[];
   compositions: CompositionResult[];
   percentageComplete: number;
+  distilledMass: number;
 };

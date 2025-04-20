@@ -19,9 +19,9 @@ import {
   SkipBack,
   SkipForward,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { invokeTauri, logger } from "@/adapters/tauri";
+import { invokeTauri } from "@/adapters/tauri";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,20 +55,25 @@ export function FilePlayer({ className = "" }: { className?: string }) {
     );
   };
 
-  const handleFile = async () => {
+  // Handle toggle connection
+  const handleToggle = async () => {
     if (fileProgress === 100) return;
-    if (connected === "file") {
-      await invokeTauri("pause_column_data")
-        .then(() => setConnected("paused"))
-        .catch((error) => {
-          logger.error(`Error canceling column data: ${error}`);
-          setConnected("none");
-        });
+    if (connected === "file" || connected === "paused") {
+      await invokeTauri("toggle_column_data").then((status) => {
+        console.log("status button: ", status);
+        if (status === "paused") {
+          setConnected("paused");
+        } else {
+          setConnected("file");
+        }
+      });
       return;
     }
-    setConnected("file");
-    await invokeTauri("send_column_data").catch(() => setConnected("none"));
   };
+
+  useEffect(() => {
+    console.log("status: ", connected);
+  }, [connected]);
 
   return (
     <header
@@ -123,7 +128,7 @@ export function FilePlayer({ className = "" }: { className?: string }) {
             <Button
               variant="outline"
               size="icon"
-              onClick={handleFile}
+              onClick={handleToggle}
               className="mx-1 h-7 w-7"
             >
               {connected === "file" ? (
