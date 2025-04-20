@@ -1,6 +1,19 @@
-# Distillation Tower Monitor
+<p align="center">
+  <p align="center">
+   <img width="150" height="150" src="https://github.com/KonorOko/distillation-tower-monitor/blob/main/public/IconDistillationTowerMonitor.png" alt="Logo">
+  </p>
+	<h1 align="center"><b>Distillation Tower Monitor</b></h1>
+	<p align="center">
+    <br />
+    <b>Downloads for Windows & macOS</b>
+    <br />
+  </p>
+</p>
+<br/>
 
 An open-source project built with [Tauri](https://v2.tauri.app/) and React for monitoring a distillation tower. The application measures temperatures and calculates per-plate compositions, displaying real-time charts and saving the measurement history in Excel files.
+
+<img src="https://github.com/KonorOko/distillation-tower-monitor/blob/main/public/SampleImage1.png"/>
 
 ## Features
 
