@@ -56,15 +56,23 @@ export function DistillationMassChart() {
             (dataMax: number) => (dataMax * (1 + 0.08)).toFixed(0),
           ]}
           className="text-xs font-thin tracking-tight"
-          label={<Label value={"m(Kg)"} position={{ x: 2, y: -20 }} />}
+          label={<Label value={"m(g)"} position={{ x: 2, y: -20 }} />}
         />
         <XAxis
-          dataKey={"time"}
+          dataKey="time"
           tickLine={false}
           axisLine={false}
           tickMargin={10}
-          hide
+          interval={"equidistantPreserveStart"}
+          minTickGap={15}
           className="overflow-hidden text-xs font-thin tracking-tight"
+          label={
+            <Label
+              value={"Time (min)"}
+              position={"insideBottom"}
+              offset={-15}
+            />
+          }
         />
         <Line
           dataKey="distilledMass"

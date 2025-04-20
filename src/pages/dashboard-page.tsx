@@ -42,11 +42,13 @@ export function DashboardPage() {
       <section className="col-span-2 row-span-2 row-start-10 flex flex-col items-center justify-center gap-2 rounded border px-10">
         <div className="flex w-full items-center justify-center gap-2">
           <div className="grid w-1/2 space-y-1">
-            <Label htmlFor="initialMass">Initial Mass</Label>
+            <Label htmlFor="initialMass">Initial Mass (g)</Label>
             <Input id="initialMass" placeholder="Enter initial mass" />
           </div>
           <div className="grid w-1/2 space-y-1">
-            <Label htmlFor="initialComposition">Initial Composition</Label>
+            <Label htmlFor="initialComposition">
+              Initial Composition (%m/m)
+            </Label>
             <Input
               id="initialComposition"
               placeholder="Enter initial composition"
