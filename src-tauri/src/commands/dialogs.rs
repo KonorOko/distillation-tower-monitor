@@ -2,6 +2,7 @@ use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
+#[specta::specta]
 pub async fn folder_path(app: AppHandle) -> String {
     let file_path = app.dialog().file().blocking_pick_folder();
     if let Some(file_path) = file_path {
@@ -11,6 +12,7 @@ pub async fn folder_path(app: AppHandle) -> String {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn file_path(app: AppHandle) -> String {
     let file_path = app
         .dialog()

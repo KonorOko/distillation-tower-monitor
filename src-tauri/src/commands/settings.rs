@@ -5,6 +5,7 @@ use log::debug;
 use tauri::State;
 
 #[tauri::command]
+#[specta::specta]
 pub async fn save_settings(app_state: State<'_, AppState>, settings: Settings) -> Result<Settings> {
     debug!("Saving settings");
     let settings_service = SettingsService::new();
@@ -16,6 +17,7 @@ pub async fn save_settings(app_state: State<'_, AppState>, settings: Settings) -
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn get_settings(app_state: State<'_, AppState>) -> Result<Settings> {
     debug!("Getting settings");
     let settings_service = SettingsService::new();
@@ -25,6 +27,7 @@ pub async fn get_settings(app_state: State<'_, AppState>) -> Result<Settings> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn available_ports() -> Result<Vec<String>> {
     match serialport::available_ports() {
         Ok(ports) => {

@@ -23,8 +23,10 @@ use log::info;
 use rodbus::client::Channel;
 use settings::types::Settings;
 use settings::SettingsService;
+use specta_typescript::Typescript;
 use std::sync::Arc;
 use tauri::Manager;
+use tauri_specta::{collect_commands, Builder};
 use tokio::sync::Mutex;
 
 #[derive(Clone)]
@@ -106,6 +108,28 @@ impl TransmissionState {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let builder = Builder::<tauri::Wry>::new().commands(collect_commands![
+        get_settings,
+        save_settings,
+        connect_modbus,
+        disconnect_modbus,
+        export_data,
+        import_data,
+        file_path,
+        folder_path,
+        send_column_data,
+        cancel_column_data,
+        handle_skip,
+        set_speed,
+        import_temperatures,
+        available_ports,
+        toggle_column_data
+    ]);
+    #[cfg(debug_assertions)]
+    builder
+        .export(Typescript::default(), "../src/bindings.ts")
+        .expect("Failed to export typescript bindings");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(
@@ -115,24 +139,8 @@ pub fn run() {
         )
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![
-            get_settings,
-            save_settings,
-            connect_modbus,
-            disconnect_modbus,
-            export_data,
-            import_data,
-            file_path,
-            folder_path,
-            send_column_data,
-            cancel_column_data,
-            handle_skip,
-            set_speed,
-            import_temperatures,
-            available_ports,
-            toggle_column_data
-        ])
-        .setup(|app| {
+        .setup(move |app| {
+            builder.mount_events(app);
             let app_handle = app.handle();
 
             // Initialize settings service

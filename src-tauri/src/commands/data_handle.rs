@@ -6,6 +6,7 @@ use rust_xlsxwriter::{Workbook, XlsxError};
 use tauri::{AppHandle, Emitter, State};
 
 #[tauri::command]
+#[specta::specta]
 pub async fn import_data(
     app_handle: AppHandle,
     app_state: State<'_, AppState>,
@@ -33,12 +34,14 @@ pub async fn import_data(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn import_temperatures(path: &str) -> Result<(), String> {
     info!("Importing data from {}", path);
     todo!()
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn export_data(app_state: State<'_, AppState>, path: String) -> Result<(), String> {
     info!("Export data to excel...");
     let mut workbook = Workbook::new();
