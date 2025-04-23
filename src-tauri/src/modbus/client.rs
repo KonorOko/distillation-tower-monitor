@@ -52,7 +52,7 @@ impl ModbusConnection for ModbusClient {
             id: UnitId {
                 value: settings.unit_id,
             },
-            response_timeout: Duration::from_millis(settings.timeout),
+            response_timeout: Duration::from_millis(settings.timeout as u64),
         };
 
         for attempt in 1..=3 {

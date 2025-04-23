@@ -7,10 +7,11 @@ use crate::AppState;
 use tauri::State;
 
 #[tauri::command]
+#[specta::specta]
 pub async fn send_column_data(
     app_handle: AppHandle,
     app_state: State<'_, AppState>,
-    number_plates: usize,
+    number_plates: i32,
 ) -> Result<(), String> {
     info!("Initializing send_column_data...");
     {
@@ -61,6 +62,7 @@ pub async fn send_column_data(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn toggle_column_data(app_state: State<'_, AppState>) -> Result<String, String> {
     info!("Toggling column data");
     let mut transmission_state = app_state.transmission_state.lock().await;
@@ -76,6 +78,7 @@ pub async fn toggle_column_data(app_state: State<'_, AppState>) -> Result<String
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn cancel_column_data(app_state: State<'_, AppState>) -> Result<(), String> {
     info!("Canceling column data");
     let mut transmission_state = app_state.transmission_state.lock().await;
@@ -88,20 +91,22 @@ pub async fn cancel_column_data(app_state: State<'_, AppState>) -> Result<(), St
 }
 
 #[tauri::command]
-pub async fn handle_skip(app_state: State<'_, AppState>, skip_count: i64) -> Result<(), String> {
+#[specta::specta]
+pub async fn handle_skip(app_state: State<'_, AppState>, skip_count: i32) -> Result<(), String> {
     info!("Handling skip {} seconds", skip_count);
     let mut transmission_guard = app_state.transmission_state.lock().await;
-    transmission_guard.data_provider.skip(skip_count)?;
+    transmission_guard.data_provider.skip(skip_count as i64)?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn set_speed(app_state: State<'_, AppState>, speed_factor: u64) -> Result<(), String> {
+#[specta::specta]
+pub async fn set_speed(app_state: State<'_, AppState>, speed_factor: u32) -> Result<(), String> {
     info!("Setting speed");
     let mut transmission_state = app_state.transmission_state.lock().await;
     let new_speed = 1000 / speed_factor;
 
-    transmission_state.set_speed(new_speed);
+    transmission_state.set_speed(new_speed as u64);
 
     Ok(())
 }

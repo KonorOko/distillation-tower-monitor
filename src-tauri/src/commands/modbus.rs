@@ -12,6 +12,7 @@ use tauri::State;
 use tokio::sync::Mutex;
 
 #[tauri::command]
+#[specta::specta]
 pub async fn connect_modbus(app_state: State<'_, AppState>) -> Result<()> {
     // Get Settings
     let settings_path = app_state.settings_path.clone();
@@ -39,6 +40,7 @@ pub async fn connect_modbus(app_state: State<'_, AppState>) -> Result<()> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn disconnect_modbus(app_state: State<'_, AppState>) -> Result<()> {
     let mut channel_guard = app_state.modbus_channel.lock().await;
 

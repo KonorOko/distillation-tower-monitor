@@ -19,9 +19,9 @@ import {
   SkipBack,
   SkipForward,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-import { invokeTauri } from "@/adapters/tauri";
+import { commands } from "@/bindings";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,38 +42,33 @@ export function FilePlayer({ className = "" }: { className?: string }) {
   const handleSpeedChange = async (value: string) => {
     const speed = Number.parseFloat(value);
     setPlaybackSpeed(speed);
-    await invokeTauri("set_speed", { speedFactor: speed }).catch((e) =>
-      console.log("Error setting speed:", e),
-    );
+    const response = await commands.setSpeed(speed);
+    if (response.status !== "ok") {
+      console.log("Error setting speed:", response.error);
+    }
   };
 
   // Handle skip forward/backward
   const handleSkip = async (amount: number) => {
-    console.log(`Skipping ${amount} seconds`);
-    await invokeTauri("handle_skip", { skipCount: amount }).catch((e) =>
-      console.log("Error skipping", e),
-    );
+    const response = await commands.handleSkip(amount);
+    if (response.status !== "ok") {
+      console.log("Error skipping:", response.error);
+    }
   };
 
   // Handle toggle connection
   const handleToggle = async () => {
     if (fileProgress === 100) return;
     if (connected === "file" || connected === "paused") {
-      await invokeTauri("toggle_column_data").then((status) => {
-        console.log("status button: ", status);
-        if (status === "paused") {
-          setConnected("paused");
-        } else {
-          setConnected("file");
-        }
-      });
-      return;
+      const response = await commands.toggleColumnData();
+      if (response.status !== "ok") {
+        console.log("Error toggling column data:", response.error);
+        return;
+      }
+      const newStatus = response.data === "paused" ? "paused" : "file";
+      setConnected(newStatus);
     }
   };
-
-  useEffect(() => {
-    console.log("status: ", connected);
-  }, [connected]);
 
   return (
     <header
@@ -175,7 +170,7 @@ export function FilePlayer({ className = "" }: { className?: string }) {
         </div>
 
         <div className="flex w-full items-center gap-2">
-          <span className="w-10 text-right text-xs text-muted-foreground">
+          <span className="w-10 px-1 text-right text-xs text-muted-foreground">
             {fileProgress.toFixed(1)}%
           </span>
           <div className="relative w-full">

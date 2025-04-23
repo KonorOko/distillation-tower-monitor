@@ -37,7 +37,7 @@ impl LiveDataProvider {
 
 #[async_trait]
 impl DataProvider for LiveDataProvider {
-    async fn get_next_entry(&mut self, number_plates: usize) -> Result<Arc<ColumnEntry>> {
+    async fn get_next_entry(&mut self, number_plates: i32) -> Result<Arc<ColumnEntry>> {
         let initial_mass = 1000.0;
 
         let mut channel_guard = self.modbus_channel.lock().await;
@@ -63,7 +63,7 @@ impl DataProvider for LiveDataProvider {
             temperatures[1].value as f64 / 100.0,
         );
 
-        let mut compositions = Vec::with_capacity(number_plates);
+        let mut compositions = Vec::with_capacity(number_plates as usize);
         for &temp in &inter_temps {
             let composition = self
                 .calculation_service
