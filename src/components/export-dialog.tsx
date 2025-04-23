@@ -1,4 +1,4 @@
-import { invokeTauri } from "@/adapters/tauri";
+import { commands } from "@/bindings";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,22 +16,19 @@ export function ExportDialog({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [fileName, setFileName] = useState("column-data");
   const [folderPath, setFolderPath] = useState("");
+
   const handleExport = () => {
-    toast.promise(
-      invokeTauri("export_data", {
-        path: folderPath + "/" + fileName + ".xlsx",
-      }),
-      {
-        loading: "Saving data...",
-        error: "Error saving data",
-        success: "Data saved",
-      },
-    );
+    const newPath = folderPath + "/" + fileName + ".xlsx";
+    toast.promise(commands.exportData(newPath), {
+      loading: "Saving data...",
+      error: "Error saving data",
+      success: "Data saved",
+    });
     setIsOpen(false);
   };
 
   const handleDialog = async () => {
-    const path = await invokeTauri<string>("folder_path");
+    const path = await commands.filePath();
     setFolderPath(path);
   };
   return (

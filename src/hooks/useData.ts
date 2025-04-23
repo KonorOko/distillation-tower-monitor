@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { MAX_DATA_LENGTH } from "@/constants";
-import { invokeTauri } from "@/adapters/tauri";
 import { ColumnDataEntry } from "@/types";
+import { commands } from "@/bindings";
 
 type DataMode = "none" | "modbus" | "file" | "paused";
 
@@ -45,7 +45,7 @@ export const useData = create<DataState>((set) => ({
   setFilePath: (filePath: string) => set(() => ({ filePath })),
   setFileProgress: (fileProgress: number) => set(() => ({ fileProgress })),
   clearData: async () => {
-    await invokeTauri("cancel_column_data");
+    await commands.cancelColumnData();
     set(() => ({
       columnData: [],
       connected: "none",

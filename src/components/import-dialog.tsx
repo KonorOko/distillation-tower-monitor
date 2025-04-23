@@ -1,4 +1,4 @@
-import { invokeTauri, logger } from "@/adapters/tauri";
+import { commands } from "@/bindings";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,7 +13,7 @@ import { useData } from "@/hooks/useData";
 import { usePlates } from "@/hooks/usePlates";
 import { cn } from "@/lib/utils";
 import { FileSpreadsheet, Upload, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 export function ImportDialog({ children }: { children: React.ReactNode }) {
@@ -28,21 +28,18 @@ export function ImportDialog({ children }: { children: React.ReactNode }) {
 
   const handleImport = () => {
     if (!filePath) {
-      toast.error("Please select a file first");
+      toast.error("Please select a file");
       return;
     }
 
     setIsImporting(true);
 
     const handleFile = async () => {
-      try {
-        await invokeTauri("import_data", {
-          path: filePath,
-        });
-        invokeTauri("send_column_data", { numberPlates });
-      } catch (error) {
+      const response = await commands.importData(filePath);
+      if (response.status !== "ok") {
         throw new Error("Failed to import data");
       }
+      commands.sendColumnData(numberPlates);
     };
 
     toast.promise(handleFile(), {
@@ -60,23 +57,13 @@ export function ImportDialog({ children }: { children: React.ReactNode }) {
   };
 
   const handleFileSelect = async () => {
-    try {
-      const path = await invokeTauri<string>("file_path");
-      if (path) {
-        setFilePath(path);
-      }
-    } catch (error) {
-      logger.error(("Error selecting file: " + error) as string);
-    }
+    const path = await commands.filePath();
+    setFilePath(path);
   };
 
   const clearSelection = async () => {
     await clearData();
   };
-
-  useEffect(() => {
-    console.log(filePath);
-  }, [filePath]);
 
   const getFileName = (path: string | null): string => {
     if (!path) return "";

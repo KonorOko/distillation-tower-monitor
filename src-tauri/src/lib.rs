@@ -125,12 +125,14 @@ pub fn run() {
         available_ports,
         toggle_column_data
     ]);
+
     #[cfg(debug_assertions)]
     builder
         .export(Typescript::default(), "../src/bindings.ts")
         .expect("Failed to export typescript bindings");
 
     tauri::Builder::default()
+        .invoke_handler(builder.invoke_handler())
         .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_log::Builder::new()
