@@ -1,18 +1,14 @@
 import { ChartConfig, ChartContainer } from "@/components/ui/chart";
 import { useData } from "@/hooks/useData";
 import { formatDistillationChart } from "@/lib/formatDataChart";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { CartesianGrid, Label, Line, LineChart, XAxis, YAxis } from "recharts";
 import { EmptyState } from "./empty-state";
 
 const chartConfig = {
-  time: {
-    label: "Time",
-    color: "hsl(220, 100%, 80%)",
-  },
   distilledMass: {
     label: "Distilled Mass",
-    color: "hsl(var(--chart-2))",
+    color: "hsl(220, 100%, 80%)",
   },
 } satisfies ChartConfig;
 
@@ -24,10 +20,6 @@ export function DistillationMassChart() {
     [columnData],
   );
 
-  useEffect(
-    () => console.log("chartData", chartData, "\n original", columnData),
-    [chartData],
-  );
   if (connected === "none") {
     return <EmptyState />;
   }
@@ -52,11 +44,14 @@ export function DistillationMassChart() {
           axisLine={false}
           width={10}
           domain={[
-            (dataMin: number) => (dataMin * (1 - 0.08)).toFixed(0),
-            (dataMax: number) => (dataMax * (1 + 0.08)).toFixed(0),
+            0,
+            (dataMax: number) => {
+              if (dataMax === 0) return 100;
+              return (dataMax * (1 + 0.08)).toFixed(0);
+            },
           ]}
           className="text-xs font-thin tracking-tight"
-          label={<Label value={"m(g)"} position={{ x: 2, y: -20 }} />}
+          label={<Label value={"m(g)"} position={{ x: -2, y: -20 }} />}
         />
         <XAxis
           dataKey="time"

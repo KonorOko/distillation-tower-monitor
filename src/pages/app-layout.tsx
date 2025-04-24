@@ -6,10 +6,7 @@ export function AppLayout() {
   const { settings, loadSettings } = useSettings();
 
   useEffect(() => {
-    const getSettings = async () => {
-      loadSettings();
-    };
-    getSettings();
+    loadSettings();
   }, []);
 
   if (!settings) {
