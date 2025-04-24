@@ -98,9 +98,6 @@ impl ExcelDataImporter {
         let mut imported_data: Vec<Arc<ColumnEntry>> = Vec::new();
         let total_rows = range.rows().count().saturating_sub(1);
 
-        let mut x_b0 = 0.0;
-        let initial_mass = 1000.0;
-
         for (index, row) in range.rows().skip(1).enumerate() {
             let percentage_complete = (index as f64 + 1.0) / total_rows as f64 * 100.0;
 
@@ -169,28 +166,9 @@ impl ExcelDataImporter {
                     .collect()
             };
 
-            if compositions.first().and_then(|c| c.x_1).is_some() && x_b0 == 0.0 {
-                x_b0 = compositions.first().unwrap().x_1.unwrap();
-            }
-
-            let mut distilled_mass = 0.0;
-            if imported_data.len() > 0 && x_b0 > 0.0 {
-                if let Some(first_comp) = compositions.first() {
-                    if let Some(last_comp) = compositions.last() {
-                        if let (Some(x_bf), Some(x_d)) = (first_comp.x_1, last_comp.y_1) {
-                            println!("\ncount: {}", index);
-                            println!("xb0: {}, x_bf: {}, x_d: {}", x_b0, x_bf, x_d);
-                            distilled_mass = self.calculation_service.calculate_distilled_mass(
-                                initial_mass,
-                                0.69,
-                                x_bf,
-                                x_d,
-                            );
-                            println!("distilled_mass: {}", distilled_mass);
-                        }
-                    }
-                }
-            }
+            let distilled_mass = self
+                .calculation_service
+                .calculate_distilled_mass(1000.0, imported_data.clone());
 
             imported_data.push(Arc::new(ColumnEntry {
                 timestamp,
@@ -206,5 +184,23 @@ impl ExcelDataImporter {
         }
 
         Ok(imported_data)
+    }
+}
+
+pub struct ExcelDataExporter {
+    calculation_service: CalculationService,
+}
+
+impl ExcelDataExporter {
+    pub fn new(calculation_service: CalculationService) -> Self {
+        ExcelDataExporter {
+            calculation_service,
+        }
+    }
+
+    pub fn export_data(&self, data: &[Arc<ColumnEntry>]) -> Result<()> {
+        // Implementation for exporting data to Excel format
+        unimplemented!();
+        Ok(())
     }
 }

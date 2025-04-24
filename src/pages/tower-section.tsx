@@ -28,7 +28,7 @@ export function TowerSection({ className }: { className?: string }) {
 
   return (
     <section className={cn("relative", className)}>
-      <header className="absolute right-0">
+      <header className="absolute right-0 z-10">
         <Button
           size={"icon"}
           variant={"outline"}
@@ -49,7 +49,7 @@ export function TowerSection({ className }: { className?: string }) {
         </Button>
       </header>
       <DistillationTower plates={numberPlates} />
-      <footer className="absolute bottom-0 right-0">
+      <footer className="absolute bottom-0 right-0 z-10">
         <div className="flex w-10 items-center justify-center rounded border border-b-0 border-r-0 bg-background p-2 shadow-inner">
           <p className="text-sm font-semibold text-muted-foreground">
             {numberPlates}

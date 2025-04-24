@@ -74,7 +74,7 @@ export function DashboardPage() {
         <YVsXChart />
       </CardLayout>
       <CardLayout
-        title="x, y vs T"
+        title="T vs x, y"
         description="Compositions over temperature"
         className={
           "col-span-2 col-start-5 row-span-5 row-start-2 rounded shadow-none"

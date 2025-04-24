@@ -41,7 +41,7 @@ export function TemperaturesChart() {
         margin={{
           left: 24,
           right: 5,
-          bottom: 15,
+          bottom: 17,
           top: 45,
         }}
       >

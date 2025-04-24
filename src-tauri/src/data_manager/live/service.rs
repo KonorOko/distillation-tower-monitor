@@ -76,29 +76,6 @@ impl DataProvider for LiveDataProvider {
         }
 
         let mut distilled_mass = 0.0;
-        if self.history.len() > 1 {
-            if let (Some(first_entry), Some(last_entry)) =
-                (self.history.first(), self.history.last())
-            {
-                if let (Some(first_comp), Some(last_comp)) = (
-                    first_entry.compositions.first(),
-                    last_entry.compositions.last(),
-                ) {
-                    if let (Some(x_b0), Some(x_bf), Some(x_d)) = (
-                        first_comp.x_1,
-                        last_entry.compositions.first().and_then(|c| c.x_1),
-                        last_comp.y_1,
-                    ) {
-                        distilled_mass = self.calculation_service.calculate_distilled_mass(
-                            initial_mass,
-                            x_b0,
-                            x_bf,
-                            x_d,
-                        );
-                    }
-                }
-            }
-        }
 
         let entry = Arc::new(ColumnEntry {
             timestamp: SystemTime::now()
