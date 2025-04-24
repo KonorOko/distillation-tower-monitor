@@ -3,6 +3,7 @@ use crate::errors::Result;
 use crate::math::{integrate_trapezoidal, interpolate, newton_raphson, round};
 use std::f64::consts::E;
 
+#[derive(Debug)]
 pub struct CalculationService {
     params: EquationParams,
 }
@@ -52,12 +53,12 @@ impl CalculationService {
         mass_final
     }
 
-    pub fn interpolate_temps(&self, num_plates: usize, t_1: f64, t_n: f64) -> Vec<f64> {
+    pub fn interpolate_temps(&self, num_plates: i32, t_1: f64, t_n: f64) -> Vec<f64> {
         if num_plates <= 2 {
             return vec![round(t_1, 3), round(t_n, 3)];
         }
 
-        let mut interpolated_temps = Vec::with_capacity(num_plates);
+        let mut interpolated_temps = Vec::with_capacity(num_plates as usize);
         for i in 0..num_plates {
             let temp = interpolate(1.0, t_1, num_plates as f64, t_n, i as f64 + 1.0);
             interpolated_temps.push(round(temp, 3));

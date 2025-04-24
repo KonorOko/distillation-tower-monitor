@@ -57,6 +57,7 @@ export function XYvsTChart() {
           allowDataOverflow
           interval={"equidistantPreserveStart"}
           className="text-xs font-thin tracking-tight"
+          label={<Label value={"x, y"} position={{ x: -4, y: -20 }} />}
         />
         <XAxis
           xAxisId={0}

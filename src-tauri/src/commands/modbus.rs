@@ -1,19 +1,19 @@
+use std::sync::Arc;
+
+use crate::calculations::service::CalculationService;
+use crate::data_manager::factory::ProviderFactory;
 use crate::errors::{ModbusError, Result};
 use crate::settings::SettingsService;
+use crate::AppState;
 use crate::ModbusClient;
 use crate::ModbusService;
-use crate::{AppState, DataSource};
 use log::error;
 use tauri::State;
+use tokio::sync::Mutex;
 
 #[tauri::command]
+#[specta::specta]
 pub async fn connect_modbus(app_state: State<'_, AppState>) -> Result<()> {
-    let mut channel_guard = app_state.modbus_channel.lock().await;
-
-    if channel_guard.is_some() {
-        return Err(ModbusError::ConnectionError("Already connected".to_string()).into());
-    }
-
     // Get Settings
     let settings_path = app_state.settings_path.clone();
     let settings_service = SettingsService::new();
@@ -24,18 +24,23 @@ pub async fn connect_modbus(app_state: State<'_, AppState>) -> Result<()> {
     let modbus_service = ModbusService::new(modbus_client);
     let new_channel = modbus_service.connect(&settings.modbus).await?;
 
-    // Set the new channel
-    *channel_guard = Some(new_channel);
-
     // Initialize transmission state
+    let calculation_service = CalculationService::new();
+    let provider_factory = ProviderFactory::new();
+    let provider = provider_factory.create_live_provider(
+        Arc::new(calculation_service),
+        Arc::new(Mutex::new(Some(new_channel.clone()))),
+    );
+
     let mut transmission_guard = app_state.transmission_state.lock().await;
-    transmission_guard.set_data_source(DataSource::Live);
+    transmission_guard.set_data_provider(provider);
     transmission_guard.start();
 
     Ok(())
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn disconnect_modbus(app_state: State<'_, AppState>) -> Result<()> {
     let mut channel_guard = app_state.modbus_channel.lock().await;
 

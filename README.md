@@ -1,6 +1,19 @@
-# Distillation Tower Monitor
+<p align="center">
+  <p align="center">
+   <img width="150" height="150" src="https://github.com/KonorOko/distillation-tower-monitor/blob/main/public/IconDistillationTowerMonitor.png" alt="Logo">
+  </p>
+	<h1 align="center"><b>Distillation Tower Monitor</b></h1>
+	<p align="center">
+    <br />
+    <b>Downloads for Windows & macOS</b>
+    <br />
+  </p>
+</p>
+<br/>
 
-An open-source project built with [Tauri](https://v2.tauri.app/) and React for monitoring a distillation tower. The application measures temperatures and calculates per-plate compositions, displaying real-time charts and saving the measurement history in Excel/CSV files.
+An open-source project built with [Tauri](https://v2.tauri.app/) and React for monitoring a distillation tower. The application measures temperatures and calculates per-plate compositions, displaying real-time charts and saving the measurement history in Excel files.
+
+<img src="https://github.com/KonorOko/distillation-tower-monitor/blob/main/public/SampleImage1.png"/>
 
 ## Features
 
@@ -8,7 +21,7 @@ An open-source project built with [Tauri](https://v2.tauri.app/) and React for m
   Display interactive charts of temperatures and compositions for each plate of the tower.
 
 - **Measurement History:**
-  Save historical data and export it in Excel or CSV format.
+  Save historical data and export it in Excel format.
 
 - **Modbus RTU Connection:**
   Connect to the distillation tower via Modbus RTU with no extra drivers or configurations required.
@@ -19,7 +32,7 @@ An open-source project built with [Tauri](https://v2.tauri.app/) and React for m
 ## System Requirements
 
 - **Supported Platforms:**
-  Works on Windows, macOS, and Linux.
+  Works on Windows and macOS.
 
 - **Dependencies:**
   No additional drivers are required for the Modbus RTU connection.
@@ -39,7 +52,7 @@ pnpm install
 
 2. Start development mode:
 ```bash
-pnpm dev
+pnpm tauri dev
 ```
 
 ## Running the Project
@@ -47,7 +60,7 @@ pnpm dev
 ### Development Mode
 After installing dependencies, run:
 ```bash
-pnpm dev
+pnpm tauri dev
 ```
 This command compiles and launches the application in development mode, allowing you to see real-time updates.
 
@@ -61,20 +74,17 @@ The backend is organized into several modules to separate concerns:
 - **calculations:**
   Contains functions for computing compositions and temperatures.
 
+- **commands**
+  Contains functions that frontend can call to interact with the backend.
+
 - **data_manager:**
   Handles data management and storage of measurement history.
 
-- **emitter:**
-  Contains functions invoked from the frontend to start or stop data transmission.
-
-- **modbus_serial:**
-  Manages the Modbus RTU connection and related requests.
+- **modbus:**
+  Manages the Modbus connection and related requests.
 
 - **settings:**
   Manages application configurations, including loading and saving settings.
-
-- **utils:**
-  Provides helper functions for exporting data, opening the file explorer, etc.
 
 ## Contributions
 
@@ -83,8 +93,7 @@ If you would like to contribute, please open a pull request or an issue in the r
 
 ## License
 
-The project is open-source but currently does not specify a license.
-If you wish to use or contribute, please note that a formal license may be defined in the future.
+Apache License 2.0
 
 ## Additional Resources
 

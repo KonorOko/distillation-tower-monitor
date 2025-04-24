@@ -58,6 +58,7 @@ export function YVsXChart() {
           domain={[0, 1]}
           interval={"preserveStartEnd"}
           className="text-xs font-thin tracking-tight"
+          label={<Label value={"y"} position={{ x: -4, y: -20 }} />}
         />
         <XAxis
           dataKey="x"

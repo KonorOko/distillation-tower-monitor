@@ -1,9 +1,11 @@
 use serde::{Deserialize, Serialize};
+use specta::Type;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Error, Serialize, Deserialize)]
+#[derive(Debug, Error, Serialize, Deserialize, Type)]
+#[serde(tag = "type", content = "data")]
 pub enum Error {
     #[error("Settings error")]
     SettingsError(#[from] SettingsError),
@@ -15,9 +17,12 @@ pub enum Error {
     RootError(#[from] RootError),
     #[error("Data error")]
     DataError(#[from] DataError),
+    #[error("Import error")]
+    ImportError(#[from] ImportError),
 }
 
-#[derive(Debug, Error, Serialize, Deserialize)]
+#[derive(Debug, Error, Serialize, Deserialize, Type)]
+#[serde(tag = "type", content = "data")]
 pub enum SettingsError {
     #[error("Failed to load settings: {0}")]
     LoadError(String),
@@ -27,7 +32,8 @@ pub enum SettingsError {
     GetUsbDevicesError(String),
 }
 
-#[derive(Debug, Error, Serialize, Deserialize)]
+#[derive(Debug, Error, Serialize, Deserialize, Type)]
+#[serde(tag = "type", content = "data")]
 pub enum FileError {
     #[error("Failed to read file: {0}")]
     ReadError(String),
@@ -47,7 +53,8 @@ pub enum FileError {
     InvalidPathError(String),
 }
 
-#[derive(Error, Serialize, Debug, Deserialize)]
+#[derive(Error, Serialize, Debug, Deserialize, Type)]
+#[serde(tag = "type", content = "data")]
 pub enum ModbusError {
     #[error("Failed to connect modbus {0}")]
     ConnectionError(String),
@@ -65,7 +72,8 @@ pub enum ModbusError {
     WriteSingleRegisterError(String),
 }
 
-#[derive(Error, Serialize, Debug, Deserialize)]
+#[derive(Error, Serialize, Debug, Deserialize, Type)]
+#[serde(tag = "type", content = "data")]
 pub enum RootError {
     #[error("Not founded root")]
     NotFoundedRoot,
@@ -75,12 +83,24 @@ pub enum RootError {
     NegativeRootError,
 }
 
-#[derive(Error, Serialize, Debug, Deserialize)]
+#[derive(Error, Serialize, Debug, Deserialize, Type)]
+#[serde(tag = "type", content = "data")]
+pub enum ImportError {
+    #[error("Invalid format {0}")]
+    InvalidFormat(String),
+}
+
+#[derive(Error, Serialize, Debug, Deserialize, Type)]
+#[serde(tag = "type", content = "data")]
 pub enum DataError {
     #[error("Data empty")]
     EmptyDataError,
     #[error("No more data")]
     NoMoreDataError,
+    #[error("No data")]
+    NoDataError,
+    #[error("Data error {0}")]
+    CustomError(String),
 }
 
 impl From<Error> for String {

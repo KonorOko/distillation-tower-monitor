@@ -1,4 +1,5 @@
-import { invokeTauri, logger } from "@/adapters/tauri";
+import { logger } from "@/adapters/tauri";
+import { commands } from "@/bindings";
 import {
   Dialog,
   DialogContent,
@@ -80,7 +81,14 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
     form.setValue("unitId", settings.modbus.unitId);
     form.setValue("count", settings.modbus.count);
 
-    invokeTauri<string[]>("available_ports").then((ports) => {
+    commands.availablePorts().then((response) => {
+      if (response.status !== "ok") {
+        toast.error("Error on fetch ports");
+        logger.error("Error on fetch ports: " + response.error);
+        return;
+      }
+
+      const ports = response.data;
       if (ports.length === 0) {
         setUsbPorts([]);
         form.setValue("usbPort", "");

@@ -1,13 +1,14 @@
 use serde::{Deserialize, Serialize};
+use specta::Type;
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ModbusSettings {
     pub usb_port: String,
     pub baudrate: u32,
     pub initial_address: u16,
     pub count: u16,
-    pub timeout: u64,
+    pub timeout: u32,
     pub unit_id: u8,
 }
 
@@ -24,7 +25,7 @@ impl Default for ModbusSettings {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub modbus: ModbusSettings,

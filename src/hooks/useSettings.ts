@@ -1,7 +1,8 @@
 import { useContext } from "react";
 import { SettingsContext } from "@/contexts/settings-context";
-import { invokeTauri, logger } from "@/adapters/tauri";
+import { logger } from "@/adapters/tauri";
 import { SettingsType } from "@/types";
+import { commands } from "@/bindings";
 
 enum ErrorMessages {
   FETCH_ERROR = "Error fetching settings: ",
@@ -13,9 +14,11 @@ export function useSettings() {
 
   const loadSettings = async () => {
     try {
-      let settings = await invokeTauri<SettingsType>("get_settings");
-      console.log("Hook loaded settings:", settings);
-      setSettings(settings);
+      const response = await commands.getSettings();
+      if (response.status !== "ok") {
+        throw response.error;
+      }
+      setSettings(response.data);
     } catch (error) {
       logger.error(ErrorMessages.FETCH_ERROR + (error as Error).message);
       throw new Error(ErrorMessages.FETCH_ERROR);
@@ -25,10 +28,10 @@ export function useSettings() {
   const saveSettings = async (newSettings: Partial<SettingsType>) => {
     try {
       const updatedSettings = { ...settings, ...newSettings };
-      console.log("Hook saving settings:", updatedSettings);
-      await invokeTauri("save_settings", {
-        settings: updatedSettings,
-      });
+      const response = await commands.saveSettings(updatedSettings);
+      if (response.status !== "ok") {
+        throw response.error;
+      }
 
       await loadSettings();
     } catch (error) {

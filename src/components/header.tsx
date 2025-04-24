@@ -1,6 +1,9 @@
-import { invokeTauri, logger } from "@/adapters/tauri";
+import { logger } from "@/adapters/tauri";
+import { commands } from "@/bindings";
 import { Button } from "@/components/ui/button";
 import { useData } from "@/hooks/useData";
+import { usePlates } from "@/hooks/usePlates";
+import { cn } from "@/lib/utils";
 import { Power, Save, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { ExportDialog } from "./export-dialog";
@@ -12,25 +15,23 @@ export function Header({ className }: { className?: string }) {
   const connected = useData((state) => state.connected);
   const setConnected = useData((state) => state.setConnected);
   const clearData = useData((state) => state.clearData);
+  const numberPlates = usePlates((state) => state.numberPlates);
 
   const handleConnection = async () => {
     if (connected === "modbus") {
-      await invokeTauri("disconnect_modbus")
-        .then(() => {
-          setConnected("none");
-          clearData();
-        })
-        .catch((error) => {
-          logger.error(`Error disconnecting from MODBUS: ${error}`);
-          setConnected("modbus");
-        });
-      return;
-    }
-    try {
+      const response = await commands.disconnectModbus();
+      if (response.status !== "ok") {
+        logger.error(`Error disconnecting from MODBUS: ${response.error}`);
+        setConnected("modbus");
+        return;
+      }
+      setConnected("none");
+      clearData();
+    } else {
       toast.promise(
-        invokeTauri("connect_modbus").then(() => {
+        commands.connectModbus().then(() => {
           setConnected("modbus");
-          invokeTauri("send_column_data");
+          commands.sendColumnData(numberPlates);
         }),
         {
           loading: "Connecting to MODBUS...",
@@ -38,9 +39,6 @@ export function Header({ className }: { className?: string }) {
           error: "Error connecting to MODBUS",
         },
       );
-    } catch (error) {
-      logger.error(`Error connecting to MODBUS: ${error}`);
-      setConnected("none");
     }
   };
 
@@ -61,7 +59,11 @@ export function Header({ className }: { className?: string }) {
           </SettingsDialog>
           <Button
             variant={"outline"}
-            className="rounded-none border-x-0"
+            className={cn(
+              "rounded-none border-x-0",
+              connected === "modbus" && "bg-red-500",
+            )}
+            disabled={connected === "file"}
             onClick={handleConnection}
           >
             <Power className="h-4 w-4" />
@@ -70,7 +72,7 @@ export function Header({ className }: { className?: string }) {
           <ExportDialog>
             <Button
               variant={"outline"}
-              disabled={connected !== "modbus"}
+              disabled={connected === "file"}
               className="rounded-l-none"
             >
               <Save className="h-4 w-4" />

@@ -9,21 +9,27 @@ mod settings;
 
 use crate::commands::data_handle::{export_data, import_data, import_temperatures};
 use crate::commands::dialogs::{file_path, folder_path};
-use crate::commands::emitter::{cancel_column_data, handle_skip, send_column_data, set_speed};
+use crate::commands::emitter::{
+    cancel_column_data, handle_skip, send_column_data, set_speed, toggle_column_data,
+};
 use crate::commands::modbus::{connect_modbus, disconnect_modbus};
 use crate::commands::settings::{available_ports, get_settings, save_settings};
-use crate::data_manager::types::{ColumnEntry, DataSource};
+use crate::data_manager::types::ColumnEntry;
 use crate::modbus::client::ModbusClient;
 use crate::modbus::service::ModbusService;
+use data_manager::factory::ProviderFactory;
+use data_manager::provider::DataProvider;
 use log::info;
 use rodbus::client::Channel;
 use settings::types::Settings;
 use settings::SettingsService;
+use specta_typescript::Typescript;
 use std::sync::Arc;
 use tauri::Manager;
+use tauri_specta::{collect_commands, Builder};
 use tokio::sync::Mutex;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AppState {
     transmission_state: Arc<Mutex<TransmissionState>>,
     history: Arc<Mutex<History>>,
@@ -36,42 +42,63 @@ pub struct History {
     pub history: Vec<Arc<ColumnEntry>>,
 }
 
-#[derive(Debug, Clone)]
 pub struct TransmissionState {
-    pub data_source: DataSource,
+    pub data_provider: Box<dyn DataProvider + Send>,
     pub is_running: bool,
+    pub is_paused: bool,
     pub speed: u64,
 }
 
+impl Clone for TransmissionState {
+    fn clone(&self) -> Self {
+        Self {
+            data_provider: self.data_provider.clone_provider(),
+            is_running: self.is_running,
+            is_paused: self.is_paused,
+            speed: self.speed,
+        }
+    }
+}
+
 impl TransmissionState {
-    pub fn new(data_source: DataSource) -> Self {
+    pub fn new(data_provider: Box<dyn DataProvider + Send>) -> Self {
         TransmissionState {
-            data_source,
+            data_provider,
             is_running: false,
+            is_paused: false,
             speed: 1000,
         }
     }
     pub fn start(&mut self) {
         self.is_running = true;
+        self.is_paused = false;
     }
     pub fn stop(&mut self) {
         self.is_running = false;
+        self.is_paused = false;
     }
     pub fn toggle(&mut self) {
-        self.is_running = !self.is_running;
+        self.is_paused = !self.is_paused;
     }
 
-    pub fn set_data_source(&mut self, data_source: DataSource) {
-        self.data_source = data_source;
+    pub fn set_data_provider(&mut self, data_provider: Box<dyn DataProvider + Send>) {
+        self.data_provider = data_provider;
     }
 
     pub fn set_is_running(&mut self, is_running: bool) {
         self.is_running = is_running;
     }
 
-    pub fn reset(&mut self) {
-        self.data_source = DataSource::Live;
+    pub fn set_is_paused(&mut self, is_paused: bool) {
+        self.is_paused = is_paused;
+    }
+
+    pub async fn reset(&mut self) -> Result<(), String> {
+        self.data_provider.reset()?;
         self.is_running = false;
+        self.is_paused = false;
+        self.speed = 1000;
+        Ok(())
     }
 
     pub fn set_speed(&mut self, speed: u64) {
@@ -81,7 +108,31 @@ impl TransmissionState {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let builder = Builder::<tauri::Wry>::new().commands(collect_commands![
+        get_settings,
+        save_settings,
+        connect_modbus,
+        disconnect_modbus,
+        export_data,
+        import_data,
+        file_path,
+        folder_path,
+        send_column_data,
+        cancel_column_data,
+        handle_skip,
+        set_speed,
+        import_temperatures,
+        available_ports,
+        toggle_column_data
+    ]);
+
+    #[cfg(debug_assertions)]
+    builder
+        .export(Typescript::default(), "../src/bindings.ts")
+        .expect("Failed to export typescript bindings");
+
     tauri::Builder::default()
+        .invoke_handler(builder.invoke_handler())
         .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_log::Builder::new()
@@ -90,23 +141,8 @@ pub fn run() {
         )
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![
-            get_settings,
-            save_settings,
-            connect_modbus,
-            disconnect_modbus,
-            export_data,
-            import_data,
-            file_path,
-            folder_path,
-            send_column_data,
-            cancel_column_data,
-            handle_skip,
-            set_speed,
-            import_temperatures,
-            available_ports
-        ])
-        .setup(|app| {
+        .setup(move |app| {
+            builder.mount_events(app);
             let app_handle = app.handle();
 
             // Initialize settings service
@@ -129,9 +165,11 @@ pub fn run() {
                 });
             info!("Initial settings: {:?}", settings);
 
+            let provider_factory = ProviderFactory::new();
+            let provider = provider_factory.create_playback_provider(vec![], 0);
             // Initialize the app state
             let app_state = AppState {
-                transmission_state: Arc::new(Mutex::new(TransmissionState::new(DataSource::Live))),
+                transmission_state: Arc::new(Mutex::new(TransmissionState::new(provider))),
                 history: Arc::new(Mutex::new(History::default())),
                 modbus_channel: Arc::new(Mutex::new(None)),
                 settings_path,
