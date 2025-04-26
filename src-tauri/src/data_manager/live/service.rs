@@ -37,7 +37,12 @@ impl LiveDataProvider {
 
 #[async_trait]
 impl DataProvider for LiveDataProvider {
-    async fn get_next_entry(&mut self, number_plates: i32) -> Result<Arc<ColumnEntry>> {
+    async fn get_next_entry(
+        &mut self,
+        number_plates: i32,
+        initial_mass: f32,
+        initial_concentration: f32,
+    ) -> Result<Arc<ColumnEntry>> {
         let initial_mass = 1000.0;
 
         let mut channel_guard = self.modbus_channel.lock().await;
