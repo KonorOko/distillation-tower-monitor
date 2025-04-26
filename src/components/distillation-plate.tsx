@@ -20,10 +20,11 @@ export function DistillationPlate({
     const lastEntry = state.columnData.at(-1);
     return lastEntry?.temperatures[index]?.toFixed(1) || "0.0";
   });
+
   return (
     <motion.div
       className="relative flex flex-col items-center justify-center"
-      animate={{ height: scale * 104, width: scale * 232 }}
+      animate={{ height: scale * 104, width: Math.max(scale * 240, 160) }}
       {...animationProps}
     >
       <div className="h-1/4 w-full rounded border-2 border-slate-500 bg-slate-50" />

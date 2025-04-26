@@ -11,7 +11,7 @@ export function StatusLed({
     <div
       className={cn(
         "size-3 rounded-full border border-white shadow-lg",
-        connected ? "bg-green-300" : "bg-slate-300",
+        connected ? "bg-green-400" : "bg-slate-300",
         className,
       )}
     ></div>

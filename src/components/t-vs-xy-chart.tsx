@@ -14,10 +14,6 @@ import {
 import { EmptyState } from "./empty-state";
 
 const chartConfig = {
-  x: {
-    label: "x₁",
-    color: "hsl(220, 100%, 80%)",
-  },
   reference: {
     label: "",
     color: "#9ca3af",
@@ -84,6 +80,8 @@ export function XYvsTChart() {
         <Line
           xAxisId={0}
           dataKey="temp"
+          type={"linear"}
+          strokeWidth={1}
           stroke="var(--color-reference)"
           isAnimationActive={false}
           data={equilibriumData2}
@@ -92,6 +90,8 @@ export function XYvsTChart() {
         <Line
           xAxisId={1}
           dataKey="temp"
+          type={"linear"}
+          strokeWidth={1}
           stroke="var(--color-reference)"
           isAnimationActive={false}
           data={equilibriumData2}
@@ -100,8 +100,10 @@ export function XYvsTChart() {
         {chartData.map((entry) => (
           <Line
             xAxisId={0}
+            type={"linear"}
+            strokeWidth={1}
             dataKey="temp"
-            stroke="var(--color-x)"
+            stroke="hsl(var(--primary))"
             isAnimationActive={false}
             data={entry}
             dot={false}
