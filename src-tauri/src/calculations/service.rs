@@ -96,6 +96,7 @@ impl CalculationService {
 
             if let (Some(x_d0), Some(x_df), Some(x_b0), Some(x_bf)) = (x_d0, x_df, x_b0, x_bf) {
                 if x_b0 > x_0 {
+                    println!("Skipping value: x_b0 = {}; x_0 = {}", x_b0, x_0);
                     continue;
                 }
                 let dx = x_bf - x_b0;
