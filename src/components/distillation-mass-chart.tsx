@@ -8,7 +8,7 @@ import { EmptyState } from "./empty-state";
 const chartConfig = {
   distilledMass: {
     label: "Distilled Mass",
-    color: "hsl(220, 100%, 80%)",
+    color: "hsl(var(--primary))",
   },
 } satisfies ChartConfig;
 
@@ -73,6 +73,8 @@ export function DistillationMassChart() {
           dataKey="distilledMass"
           stroke="var(--color-distilledMass)"
           isAnimationActive={false}
+          type={"linear"}
+          strokeWidth={1}
           dot={false}
         />
       </LineChart>

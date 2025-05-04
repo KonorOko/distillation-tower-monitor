@@ -7,7 +7,7 @@ mod math;
 mod modbus;
 mod settings;
 
-use crate::commands::data_handle::{export_data, import_data, import_temperatures};
+use crate::commands::data_handle::{export_data, import_data};
 use crate::commands::dialogs::{file_path, folder_path};
 use crate::commands::emitter::{
     cancel_column_data, handle_skip, send_column_data, set_speed, toggle_column_data,
@@ -97,7 +97,6 @@ impl TransmissionState {
         self.data_provider.reset()?;
         self.is_running = false;
         self.is_paused = false;
-        self.speed = 1000;
         Ok(())
     }
 
@@ -121,7 +120,6 @@ pub fn run() {
         cancel_column_data,
         handle_skip,
         set_speed,
-        import_temperatures,
         available_ports,
         toggle_column_data
     ]);

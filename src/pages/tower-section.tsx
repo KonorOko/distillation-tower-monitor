@@ -1,7 +1,7 @@
 import { DistillationTower } from "@/components/distillation-tower";
 import { Button } from "@/components/ui/button";
 import { useData } from "@/hooks/useData";
-import { usePlates } from "@/hooks/usePlates";
+import { useVariables } from "@/hooks/useVariables";
 import { cn } from "@/lib/utils";
 import { listen } from "@tauri-apps/api/event";
 import { Minus, Plus } from "lucide-react";
@@ -9,17 +9,21 @@ import { useEffect } from "react";
 
 export function TowerSection({ className }: { className?: string }) {
   const connected = useData((state) => state.connected);
-  const numberPlates = usePlates((state) => state.numberPlates);
-  const addPlate = usePlates((state) => state.addPlate);
-  const removePlate = usePlates((state) => state.removePlate);
-  const setPlates = usePlates((state) => state.setPlates);
+  const numberPlates = useVariables((state) => state.numberPlates);
+  const addPlate = useVariables((state) => state.addPlate);
+  const removePlate = useVariables((state) => state.removePlate);
+  const setPlates = useVariables((state) => state.setPlates);
+  const setInitialMass = useVariables((state) => state.setInitialMass);
+  const setInitialComposition = useVariables(
+    (state) => state.setInitialComposition,
+  );
 
   useEffect(() => {
-    const unlisten = listen<number>("number_plates", (event) => {
-      const handleListen = async () => {
-        setPlates(event.payload);
-      };
-      handleListen();
+    const unlisten = listen<Array<number>>("initial_data", (event) => {
+      let payload = event.payload;
+      setPlates(payload[0]);
+      setInitialMass(payload[1]);
+      setInitialComposition(payload[2]);
     });
     return () => {
       unlisten.then((f) => f());
@@ -28,7 +32,7 @@ export function TowerSection({ className }: { className?: string }) {
 
   return (
     <section className={cn("relative", className)}>
-      <header className="absolute right-0">
+      <header className="absolute right-0 z-10">
         <Button
           size={"icon"}
           variant={"outline"}
@@ -50,7 +54,7 @@ export function TowerSection({ className }: { className?: string }) {
       </header>
       <DistillationTower plates={numberPlates} />
       <footer className="absolute bottom-0 right-0">
-        <div className="flex w-10 items-center justify-center rounded border border-b-0 border-r-0 bg-background p-2 shadow-inner">
+        <div className="z-10 flex w-10 items-center justify-center rounded border border-b-0 border-r-0 bg-background p-2 shadow-inner">
           <p className="text-sm font-semibold text-muted-foreground">
             {numberPlates}
           </p>

@@ -78,7 +78,7 @@ export function FilePlayer({ className = "" }: { className?: string }) {
         <div className="flex items-center">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7">
+              <Button size="icon" className="h-7 w-7">
                 <Clock className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -120,12 +120,7 @@ export function FilePlayer({ className = "" }: { className?: string }) {
               </Button>
             </DefaultTooltip>
 
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handleToggle}
-              className="mx-1 h-7 w-7"
-            >
+            <Button size="icon" onClick={handleToggle} className="mx-1 h-7 w-7">
               {connected === "file" ? (
                 <Pause className="h-4 w-4" />
               ) : (
@@ -157,7 +152,7 @@ export function FilePlayer({ className = "" }: { className?: string }) {
           </div>
 
           <ImportDialog>
-            <Button variant="outline" className="relative h-7">
+            <Button className="relative mx-1 h-7">
               <span className="text-xs">Excel File</span>
               {(connected === "file" || connected === "paused") && (
                 <StatusLed
