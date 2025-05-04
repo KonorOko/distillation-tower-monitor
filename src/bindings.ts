@@ -59,9 +59,9 @@ async filePath() : Promise<string> {
 async folderPath() : Promise<string> {
     return await TAURI_INVOKE("folder_path");
 },
-async sendColumnData(numberPlates: number, initialMass: number, initialConcentration: number) : Promise<Result<null, string>> {
+async sendColumnData(numberPlates: number) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("send_column_data", { numberPlates, initialMass, initialConcentration }) };
+    return { status: "ok", data: await TAURI_INVOKE("send_column_data", { numberPlates }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -86,6 +86,14 @@ async handleSkip(skipCount: number) : Promise<Result<null, string>> {
 async setSpeed(speedFactor: number) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("set_speed", { speedFactor }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async importTemperatures(path: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("import_temperatures", { path }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -120,8 +128,7 @@ async toggleColumnData() : Promise<Result<string, string>> {
 /** user-defined types **/
 
 export type DataError = { type: "EmptyDataError" } | { type: "NoMoreDataError" } | { type: "NoDataError" } | { type: "CustomError"; data: string }
-export type Error = { type: "SettingsError"; data: SettingsError } | { type: "FileError"; data: FileError } | { type: "ModbusError"; data: ModbusError } | { type: "RootError"; data: RootError } | { type: "DataError"; data: DataError } | { type: "ImportError"; data: ImportError } | { type: "ExportError"; data: ExportError }
-export type ExportError = { type: "InvalidFormat"; data: string } | { type: "NoDataError" } | { type: "ExportDataError"; data: string }
+export type Error = { type: "SettingsError"; data: SettingsError } | { type: "FileError"; data: FileError } | { type: "ModbusError"; data: ModbusError } | { type: "RootError"; data: RootError } | { type: "DataError"; data: DataError } | { type: "ImportError"; data: ImportError }
 export type FileError = { type: "ReadError"; data: string } | { type: "WriteError"; data: string } | { type: "EnsureFileError"; data: string } | { type: "InvalidFileType" } | { type: "ParseJsonError"; data: string } | { type: "CreateDirError"; data: string } | { type: "SerializeError"; data: string } | { type: "InvalidPathError"; data: string }
 export type ImportError = { type: "InvalidFormat"; data: string }
 export type ModbusError = { type: "ConnectionError"; data: string } | { type: "ReadCoilsError"; data: string } | { type: "WriteCoilsError"; data: string } | { type: "ReadHoldingRegistersError"; data: string } | { type: "WriteHoldingRegistersError"; data: string } | { type: "WriteSingleCoilError"; data: string } | { type: "WriteSingleRegisterError"; data: string }

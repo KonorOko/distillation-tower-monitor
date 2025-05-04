@@ -1,8 +1,10 @@
 import { DistillationMassChart } from "@/components/distillation-mass-chart";
 import { Header } from "@/components/header";
-import { InitialValuesForm } from "@/components/initial-values-form";
 import { XYvsTChart } from "@/components/t-vs-xy-chart";
 import { TemperaturesChart } from "@/components/temperatures-chart";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { YVsXChart } from "@/components/y-vs-x-chart";
 import { useData } from "@/hooks/useData";
 import { ColumnDataEntry } from "@/types";
@@ -35,9 +37,28 @@ export function DashboardPage() {
 
   return (
     <div className="grid h-screen w-full grid-cols-6 grid-rows-11 gap-1 p-1">
-      <Header className="col-span-6 row-span-1 rounded border bg-background" />
-      <TowerSection className="col-span-2 row-span-8 row-start-2 rounded border bg-background" />
-      <InitialValuesForm className="col-span-2 row-span-2 row-start-10 flex flex-col items-center justify-center gap-2 rounded border bg-background px-10" />
+      <Header className="col-span-6 row-span-1 rounded border" />
+      <TowerSection className="col-span-2 row-span-8 row-start-2 rounded border" />
+      <section className="col-span-2 row-span-2 row-start-10 flex flex-col items-center justify-center gap-2 rounded border px-10">
+        <div className="flex w-full items-center justify-center gap-2">
+          <div className="grid w-1/2 space-y-1">
+            <Label htmlFor="initialMass">Initial Mass (g)</Label>
+            <Input id="initialMass" placeholder="Enter initial mass" />
+          </div>
+          <div className="grid w-1/2 space-y-1">
+            <Label htmlFor="initialComposition">
+              Initial Composition (%m/m)
+            </Label>
+            <Input
+              id="initialComposition"
+              placeholder="Enter initial composition"
+            />
+          </div>
+        </div>
+        <Button className="w-full text-center" variant={"outline"}>
+          Set Variables
+        </Button>
+      </section>
       <CardLayout
         title="Temperature"
         description="Interpolation of temperatures per plate"
@@ -53,7 +74,7 @@ export function DashboardPage() {
         <YVsXChart />
       </CardLayout>
       <CardLayout
-        title="T vs x, y"
+        title="x, y vs T"
         description="Compositions over temperature"
         className={
           "col-span-2 col-start-5 row-span-5 row-start-2 rounded shadow-none"

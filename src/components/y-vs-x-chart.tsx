@@ -67,6 +67,7 @@ export function YVsXChart() {
           axisLine={false}
           tickMargin={10}
           domain={[0, 1]}
+          allowDataOverflow={true}
           className="overflow-hidden text-xs font-thin tracking-tight"
           label={<Label value={"x"} position={"insideBottom"} offset={-15} />}
         />
@@ -80,8 +81,6 @@ export function YVsXChart() {
         />
         <Line
           key="equilibrium"
-          type={"linear"}
-          strokeWidth={1}
           data={equilibriumData}
           dataKey={"y"}
           dot={false}
@@ -90,8 +89,8 @@ export function YVsXChart() {
         />
         <Scatter
           dataKey="y"
-          fill="var(--primary)"
-          stroke="white"
+          fill="var(--color-y)"
+          stroke="gray"
           isAnimationActive={false}
         />
       </ComposedChart>
