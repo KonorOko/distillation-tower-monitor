@@ -2,8 +2,10 @@ import { logger } from "@/adapters/tauri";
 import { commands } from "@/bindings";
 import { Button } from "@/components/ui/button";
 import { useData } from "@/hooks/useData";
+import { useSettings } from "@/hooks/useSettings";
 import { useVariables } from "@/hooks/useVariables";
 import { cn } from "@/lib/utils";
+import { settingsSchema } from "@/schemas/settings";
 import { Power, Save, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { ExportDialog } from "./export-dialog";
@@ -15,6 +17,9 @@ export function ModbusPlayer() {
   const setConnected = useData((state) => state.setConnected);
   const clearData = useData((state) => state.clearData);
   const numberPlates = useVariables((state) => state.numberPlates);
+  const initialComposition = useVariables((state) => state.initialComposition);
+  const initialMass = useVariables((state) => state.initialMass);
+  const { settings } = useSettings();
 
   const handleConnection = async () => {
     if (connected === "modbus") {
@@ -34,13 +39,23 @@ export function ModbusPlayer() {
         }
       };
 
+      const validData = settingsSchema.safeParse(settings);
+      if (!validData.success) {
+        toast.error("Missing settings");
+        return;
+      }
+      if (!initialMass || !initialComposition) {
+        toast.error("Missing initial values");
+        return;
+      }
+
       toast.promise(
         connectModbus().then(() => {
           setConnected("modbus");
           commands.sendColumnData(
             numberPlates,
-            0, // TODO
-            0,
+            initialMass,
+            initialComposition,
           );
         }),
         {
