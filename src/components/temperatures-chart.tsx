@@ -19,23 +19,15 @@ export function TemperaturesChart() {
     return Object.keys(chartData[0]).filter((key) => key !== "time");
   }, [chartData]);
 
-  let chartConfig = useMemo(() => {
-    const lightness = [40, 50, 60, 70];
-
-    return Object.fromEntries(
-      plateKeys.map((key, index) => {
-        const light = lightness[index % lightness.length];
-
-        return [
-          key,
-          {
-            label: `Plate ${key.slice(-1)}`,
-            color: `hsl(240, 10%, ${light}%)`,
-          },
-        ];
-      }),
-    );
-  }, [plateKeys]);
+  let chartConfig = Object.fromEntries(
+    plateKeys.map((key, index) => [
+      key,
+      {
+        label: `Plate ${key.slice(-1)}`,
+        color: `hsl(220, 100%, ${20 + index * 10}%)`,
+      },
+    ]),
+  );
 
   if (connected === "none") {
     return <EmptyState />;
@@ -49,7 +41,7 @@ export function TemperaturesChart() {
         margin={{
           left: 24,
           right: 5,
-          bottom: 17,
+          bottom: 15,
           top: 45,
         }}
       >
@@ -119,8 +111,7 @@ export function TemperaturesChart() {
           <Line
             dataKey={key}
             stroke={`var(--color-${key})`}
-            strokeWidth={1}
-            type={"linear"}
+            strokeWidth={2}
             isAnimationActive={false}
             dot={false}
           />
