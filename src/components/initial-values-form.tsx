@@ -63,7 +63,7 @@ export function InitialValuesForm({
         onSubmit={form.handleSubmit(handleSubmit)}
         className={cn("space-y-2", className)}
       >
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2">
           <FormField
             control={form.control}
             name="initialMass"
@@ -80,6 +80,7 @@ export function InitialValuesForm({
                     value={field.value || ""}
                     type="number"
                     step="0.01"
+                    className="max-w-full"
                     disabled={connected === "file"}
                   />
                 </FormControl>
@@ -105,6 +106,7 @@ export function InitialValuesForm({
                     step="0.01"
                     min="0"
                     max="100"
+                    className="w-full max-w-full"
                     disabled={connected === "file"}
                   />
                 </FormControl>
