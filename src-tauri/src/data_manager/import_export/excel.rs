@@ -73,7 +73,13 @@ impl ExcelDataImporter {
 
         let column_structure = self.parse_headers(&range, header_row)?;
 
-        let entries = self.process_rows(&range, &column_structure, header_row)?;
+        let entries = self.process_rows(
+            &range,
+            &column_structure,
+            header_row,
+            initial_mass,
+            initial_composition,
+        )?;
 
         Ok((
             column_structure.number_plates,
@@ -141,6 +147,8 @@ impl ExcelDataImporter {
         range: &Range<Data>,
         structure: &ColumnStructure,
         start_row: usize,
+        initial_mass: Option<f64>,
+        initial_composition: Option<f64>,
     ) -> Result<Vec<Arc<ColumnEntry>>> {
         let mut imported_data: Vec<Arc<ColumnEntry>> = Vec::new();
         let row_count = range.height();
@@ -229,9 +237,11 @@ impl ExcelDataImporter {
                     .collect()
             };
 
-            let distilled_mass = self
-                .calculation_service
-                .calculate_distilled_mass(1000.0, imported_data.clone());
+            let distilled_mass = self.calculation_service.calculate_distilled_mass(
+                initial_composition,
+                initial_mass,
+                imported_data.clone(),
+            );
 
             imported_data.push(Arc::new(ColumnEntry {
                 timestamp,

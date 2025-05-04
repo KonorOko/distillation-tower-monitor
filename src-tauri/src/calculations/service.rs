@@ -46,7 +46,12 @@ impl CalculationService {
         Ok(result)
     }
 
-    pub fn calculate_distilled_mass(&self, m_0: f64, history: Vec<Arc<ColumnEntry>>) -> f64 {
+    pub fn calculate_distilled_mass(
+        &self,
+        initial_composition: Option<f64>,
+        initial_mass: Option<f64>,
+        history: Vec<Arc<ColumnEntry>>,
+    ) -> f64 {
         let mut inte = 0.0;
         let f = |x_b: f64, x_d: f64| -> f64 {
             if (x_d - x_b).abs() < 1e-10 {
@@ -59,10 +64,20 @@ impl CalculationService {
             return 0.0;
         }
 
+        let (x_0, m_0) = match (initial_composition, initial_mass) {
+            (Some(comp), Some(mass)) => (comp, mass),
+            _ => return 0.0,
+        };
+
         for i in 0..history.len() - 1 {
             if history[i].compositions.is_empty() || history[i + 1].compositions.is_empty() {
                 continue;
             }
+
+            let x_b0 = match history[i].compositions.first() {
+                Some(comp) => comp.x_1,
+                None => continue,
+            };
 
             let x_d0 = match history[i].compositions.last() {
                 Some(comp) => comp.x_1,
@@ -74,17 +89,15 @@ impl CalculationService {
                 None => continue,
             };
 
-            let x_b0 = match history[i].compositions.first() {
-                Some(comp) => comp.x_1,
-                None => continue,
-            };
-
             let x_bf = match history[i + 1].compositions.first() {
                 Some(comp) => comp.x_1,
                 None => continue,
             };
 
             if let (Some(x_d0), Some(x_df), Some(x_b0), Some(x_bf)) = (x_d0, x_df, x_b0, x_bf) {
+                if x_b0 > x_0 {
+                    continue;
+                }
                 let dx = x_bf - x_b0;
                 let f_1 = f(x_b0, x_d0);
                 let f_0 = f(x_bf, x_df);
