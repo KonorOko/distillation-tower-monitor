@@ -70,7 +70,7 @@ export function InitialValuesForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="flex items-center gap-2">
-                  Masa inicial (g)
+                  Initial mass (g)
                   <Info className="size-3 self-start" />
                 </FormLabel>
                 <FormControl>
@@ -93,7 +93,7 @@ export function InitialValuesForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="flex items-center gap-2">
-                  Composición (%m/m)
+                  Composition (%m/m)
                   <Info className="size-3 self-start" />
                 </FormLabel>
                 <FormControl>
