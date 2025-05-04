@@ -41,6 +41,10 @@ export function InitialValuesForm({
   const connected = useData((state) => state.connected);
   const initialMass = useVariables((state) => state.initialMass);
   const initialComposition = useVariables((state) => state.initialComposition);
+  const setInitialMass = useVariables((state) => state.setInitialMass);
+  const setInitialComposition = useVariables(
+    (state) => state.setInitialComposition,
+  );
 
   useEffect(() => {
     if (connected !== "file") {
@@ -55,7 +59,10 @@ export function InitialValuesForm({
     defaultValues,
   });
 
-  const handleSubmit = async (values: FormValues) => {};
+  const handleSubmit = async (values: FormValues) => {
+    setInitialMass(values.initialMass);
+    setInitialComposition(values.initialComposition);
+  };
 
   return (
     <Form {...form}>
