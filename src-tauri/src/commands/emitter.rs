@@ -12,8 +12,6 @@ pub async fn send_column_data(
     app_handle: AppHandle,
     app_state: State<'_, AppState>,
     number_plates: i32,
-    initial_mass: f32,
-    initial_concentration: f32,
 ) -> Result<(), String> {
     info!("Initializing send_column_data...");
     {
@@ -37,13 +35,12 @@ pub async fn send_column_data(
             }
 
             if transmission_guard.is_paused {
-                tokio::time::sleep(Duration::from_millis(200)).await;
                 continue;
             }
 
             let entry = transmission_guard
                 .data_provider
-                .get_next_entry(number_plates, initial_mass, initial_concentration)
+                .get_next_entry(number_plates)
                 .await?;
 
             (transmission_guard.speed, entry)

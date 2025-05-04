@@ -1,9 +1,7 @@
 use super::types::{CompositionResult, EquationParams};
-use crate::data_manager::types::ColumnEntry;
 use crate::errors::Result;
-use crate::math::{interpolate, newton_raphson, round};
+use crate::math::{integrate_trapezoidal, interpolate, newton_raphson, round};
 use std::f64::consts::E;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct CalculationService {
@@ -46,65 +44,13 @@ impl CalculationService {
         Ok(result)
     }
 
-    pub fn calculate_distilled_mass(
-        &self,
-        initial_composition: Option<f64>,
-        initial_mass: Option<f64>,
-        history: Vec<Arc<ColumnEntry>>,
-    ) -> f64 {
-        let mut inte = 0.0;
-        let f = |x_b: f64, x_d: f64| -> f64 {
-            if (x_d - x_b).abs() < 1e-10 {
-                return 0.0;
-            }
-            1.0 / (x_d - x_b)
-        };
+    pub fn calculate_distilled_mass(&self, m_b0: f64, x_b0: f64, x_bf: f64, x_d: f64) -> f64 {
+        let trap_num: usize = 1000;
+        let f = |x_b: f64| 1.0 / (x_d - x_b);
+        let integral_value = integrate_trapezoidal(f, x_b0, x_bf, trap_num);
+        let mass_final = m_b0 * (integral_value).exp();
 
-        if history.len() < 2 {
-            return 0.0;
-        }
-
-        let (x_0, m_0) = match (initial_composition, initial_mass) {
-            (Some(comp), Some(mass)) => (comp, mass),
-            _ => return 0.0,
-        };
-
-        for i in 0..history.len() - 1 {
-            if history[i].compositions.is_empty() || history[i + 1].compositions.is_empty() {
-                continue;
-            }
-
-            let x_b0 = match history[i].compositions.first() {
-                Some(comp) => comp.x_1,
-                None => continue,
-            };
-
-            let x_d0 = match history[i].compositions.last() {
-                Some(comp) => comp.x_1,
-                None => continue,
-            };
-
-            let x_df = match history[i + 1].compositions.first() {
-                Some(comp) => comp.x_1,
-                None => continue,
-            };
-
-            let x_bf = match history[i + 1].compositions.first() {
-                Some(comp) => comp.x_1,
-                None => continue,
-            };
-
-            if let (Some(x_d0), Some(x_df), Some(x_b0), Some(x_bf)) = (x_d0, x_df, x_b0, x_bf) {
-                if x_b0 > x_0 {
-                    continue;
-                }
-                let dx = x_bf - x_b0;
-                let f_1 = f(x_b0, x_d0);
-                let f_0 = f(x_bf, x_df);
-                inte += 0.5 * (f_1 + f_0) * dx;
-            }
-        }
-        m_0 - (inte.exp() * m_0)
+        mass_final
     }
 
     pub fn interpolate_temps(&self, num_plates: i32, t_1: f64, t_n: f64) -> Vec<f64> {

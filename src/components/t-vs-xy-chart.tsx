@@ -14,6 +14,10 @@ import {
 import { EmptyState } from "./empty-state";
 
 const chartConfig = {
+  x: {
+    label: "x₁",
+    color: "hsl(220, 100%, 80%)",
+  },
   reference: {
     label: "",
     color: "#9ca3af",
@@ -53,7 +57,7 @@ export function XYvsTChart() {
           allowDataOverflow
           interval={"equidistantPreserveStart"}
           className="text-xs font-thin tracking-tight"
-          label={<Label value={"T(°C)"} position={{ x: 2, y: -20 }} />}
+          label={<Label value={"x, y"} position={{ x: -4, y: -20 }} />}
         />
         <XAxis
           xAxisId={0}
@@ -80,8 +84,6 @@ export function XYvsTChart() {
         <Line
           xAxisId={0}
           dataKey="temp"
-          type={"linear"}
-          strokeWidth={1}
           stroke="var(--color-reference)"
           isAnimationActive={false}
           data={equilibriumData2}
@@ -90,8 +92,6 @@ export function XYvsTChart() {
         <Line
           xAxisId={1}
           dataKey="temp"
-          type={"linear"}
-          strokeWidth={1}
           stroke="var(--color-reference)"
           isAnimationActive={false}
           data={equilibriumData2}
@@ -100,10 +100,8 @@ export function XYvsTChart() {
         {chartData.map((entry) => (
           <Line
             xAxisId={0}
-            type={"linear"}
-            strokeWidth={1}
             dataKey="temp"
-            stroke="hsl(var(--primary))"
+            stroke="var(--color-x)"
             isAnimationActive={false}
             data={entry}
             dot={false}

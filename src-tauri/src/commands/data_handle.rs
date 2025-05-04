@@ -1,8 +1,8 @@
-use crate::data_manager::import_export::excel::ExcelDataExporter;
 use crate::data_manager::import_export::ExcelDataImporter;
 use crate::AppState;
 use crate::{calculations::service::CalculationService, data_manager::factory::ProviderFactory};
 use log::info;
+use rust_xlsxwriter::{Workbook, XlsxError};
 use tauri::{AppHandle, Emitter, State};
 
 #[tauri::command]
@@ -16,8 +16,7 @@ pub async fn import_data(
     let calculation_service = CalculationService::new();
     let importer = ExcelDataImporter::new(calculation_service);
 
-    let (number_plates, imported_data, initial_mass, initial_composition) =
-        importer.import(&path).await.map_err(|e| e.to_string())?;
+    let (number_plates, imported_data) = importer.import(&path).await.map_err(|e| e.to_string())?;
 
     let provider_factory = ProviderFactory::new();
     let provider = provider_factory.create_playback_provider(imported_data, 0);
@@ -28,10 +27,7 @@ pub async fn import_data(
     }
 
     app_handle
-        .emit(
-            "initial_data",
-            (number_plates, initial_mass, initial_composition),
-        )
+        .emit("number_plates", number_plates)
         .map_err(|e| e.to_string())?;
 
     Ok(())
@@ -39,16 +35,83 @@ pub async fn import_data(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn import_temperatures(path: &str) -> Result<(), String> {
+    info!("Importing data from {}", path);
+    todo!()
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn export_data(app_state: State<'_, AppState>, path: String) -> Result<(), String> {
     info!("Export data to excel...");
-    let calculation_service = CalculationService::new();
-    let exporter = ExcelDataExporter::new(calculation_service);
+    let mut workbook = Workbook::new();
+    let worksheet = workbook.add_worksheet();
 
-    let history_guard = app_state.history.lock().await;
-    let history = history_guard.history.clone();
-    exporter
-        .export_data(&history, 1000.0, 0.98, &path)
-        .map_err(|e| e.to_string())?;
+    let column_data = {
+        let data_column = app_state.history.lock().await;
+        data_column.history.clone()
+    };
+
+    info!("Writing headers...");
+
+    let Some(first) = column_data.first() else {
+        return Err("No current data".into());
+    };
+
+    // write headers
+    worksheet
+        .write(0, 0, "Timestamp")
+        .map_err(|e: XlsxError| format!("Xlsx error: {}", e))?;
+    let num_values = first.temperatures.len();
+    for i in 0..num_values {
+        worksheet
+            .write(0, (i + 1) as u16, format!("Temperature {}", i + 1))
+            .map_err(|e: XlsxError| format!("Xlsx error: {}", e))?;
+        worksheet
+            .write(
+                0,
+                (num_values + i + 1) as u16,
+                format!("Composition x_1 {}", i + 1),
+            )
+            .map_err(|e: XlsxError| format!("Xlsx error: {}", e))?;
+        worksheet
+            .write(
+                0,
+                (num_values * 2 + i + 1) as u16,
+                format!("Composition y_1 {}", i + 1),
+            )
+            .map_err(|e: XlsxError| format!("Xlsx error: {}", e))?;
+    }
+
+    // write data
+    info!("Writing data");
+    for (row, value) in column_data.iter().enumerate() {
+        let row = (row + 1) as u32;
+        worksheet
+            .write(row, 0, value.timestamp)
+            .map_err(|e: XlsxError| format!("Xlsx error: {}", e))?;
+
+        for (i, &temp) in value.temperatures.iter().enumerate() {
+            worksheet
+                .write(row, (i + 1) as u16, temp)
+                .map_err(|e: XlsxError| format!("Xlsx error: {}", e))?;
+        }
+        for (i, comp) in value.compositions.iter().enumerate() {
+            worksheet
+                .write(row, (num_values + i + 1) as u16, comp.x_1)
+                .map_err(|e: XlsxError| format!("Xlsx error: {}", e))?;
+
+            worksheet
+                .write(row, (num_values * 2 + i + 1) as u16, comp.y_1)
+                .map_err(|e: XlsxError| format!("Xlsx error: {}", e))?;
+        }
+    }
+
+    info!("Saving excel...");
+    workbook
+        .save(path)
+        .map_err(|e: XlsxError| format!("Xlsx error: {}", e))?;
+    info!("Excel saved");
 
     Ok(())
 }

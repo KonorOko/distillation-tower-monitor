@@ -19,8 +19,6 @@ pub enum Error {
     DataError(#[from] DataError),
     #[error("Import error")]
     ImportError(#[from] ImportError),
-    #[error("Export error")]
-    ExportError(#[from] ExportError),
 }
 
 #[derive(Debug, Error, Serialize, Deserialize, Type)]
@@ -90,17 +88,6 @@ pub enum RootError {
 pub enum ImportError {
     #[error("Invalid format {0}")]
     InvalidFormat(String),
-}
-
-#[derive(Error, Serialize, Debug, Deserialize, Type)]
-#[serde(tag = "type", content = "data")]
-pub enum ExportError {
-    #[error("Invalid format {0}")]
-    InvalidFormat(String),
-    #[error("No data")]
-    NoDataError,
-    #[error("Failed to export data {0}")]
-    ExportDataError(String),
 }
 
 #[derive(Error, Serialize, Debug, Deserialize, Type)]
