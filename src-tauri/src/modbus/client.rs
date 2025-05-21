@@ -51,7 +51,7 @@ impl ModbusConnection for ModbusClient {
         Ok(channel)
     }
 
-    async fn disconnect(&self, channel: Channel) -> Result<()> {
+    async fn disconnect(&self, channel: &mut Channel) -> Result<()> {
         // Implementation of disconnect method
         channel
             .disable()

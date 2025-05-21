@@ -71,18 +71,17 @@ pub async fn connect_modbus(app_state: State<'_, AppState>) -> Result<()> {
 #[tauri::command]
 #[specta::specta]
 pub async fn disconnect_modbus(app_state: State<'_, AppState>) -> Result<()> {
-    let mut channel_guard = app_state.modbus_channel.lock().await;
+    let transmission_guard = app_state.transmission_state.lock().await;
 
     // Disconnect from Modbus
-    if let Some(channel) = channel_guard.as_mut() {
-        channel.disable().await.map_err(|e| {
-            error!("Failed to disable Modbus channel: {}", e);
-            ModbusError::ConnectionError("Failed to disable Modbus channel".to_string())
+    transmission_guard
+        .data_provider
+        .disconnect()
+        .await
+        .map_err(|e| {
+            error!("Failed to disconnect Modbus provider: {}", e);
+            ModbusError::ConnectionError("Failed to disconnect Modbus provider".to_string())
         })?;
-    }
-
-    // Clear the channel
-    *channel_guard = None;
 
     Ok(())
 }

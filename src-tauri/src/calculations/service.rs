@@ -105,7 +105,8 @@ impl CalculationService {
                 inte += 0.5 * (f_1 + f_0) * dx;
             }
         }
-        m_0 - (inte.exp() * m_0)
+        let distilled_mass = m_0 - (inte.exp() * m_0);
+        return distilled_mass;
     }
 
     pub fn interpolate_temps(&self, num_plates: i32, t_1: f64, t_n: f64) -> Vec<f64> {

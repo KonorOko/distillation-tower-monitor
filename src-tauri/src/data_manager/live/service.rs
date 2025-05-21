@@ -43,8 +43,6 @@ impl DataProvider for LiveDataProvider {
         initial_mass: f32,
         initial_concentration: f32,
     ) -> Result<Arc<ColumnEntry>> {
-        let initial_mass = 1000.0;
-
         let mut channel_guard = self.modbus_channel.lock().await;
         let channel = channel_guard
             .as_mut()
@@ -80,7 +78,11 @@ impl DataProvider for LiveDataProvider {
             compositions.push(composition);
         }
 
-        let mut distilled_mass = 0.0;
+        let distilled_mass = self.calculation_service.calculate_distilled_mass(
+            Some(initial_concentration as f64),
+            Some(initial_mass as f64),
+            self.history.clone(),
+        );
 
         let entry = Arc::new(ColumnEntry {
             timestamp: SystemTime::now()
@@ -113,9 +115,11 @@ impl DataProvider for LiveDataProvider {
 
     async fn disconnect(&self) -> Result<()> {
         let mut channel_guard = self.modbus_channel.lock().await;
-        if let Some(channel) = channel_guard.take() {
+        if let Some(channel) = channel_guard.as_mut() {
             self.modbus_service.disconnect(channel).await?;
         }
+
+        *channel_guard = None;
         Ok(())
     }
 

@@ -20,7 +20,7 @@ impl<T: ModbusConnection> ModbusService<T> {
         Ok(channel)
     }
 
-    pub async fn disconnect(&self, channel: Channel) -> Result<()> {
+    pub async fn disconnect(&self, channel: &mut Channel) -> Result<()> {
         self.client.disconnect(channel).await?;
         Ok(())
     }

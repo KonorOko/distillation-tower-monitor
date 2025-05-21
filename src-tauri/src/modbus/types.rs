@@ -7,7 +7,7 @@ use crate::settings::types::ModbusSettings;
 pub trait ModbusConnection {
     fn new() -> Self;
     async fn connect(&self, settings: &ModbusSettings) -> Result<Channel>;
-    async fn disconnect(&self, channel: Channel) -> Result<()>;
+    async fn disconnect(&self, channel: &mut Channel) -> Result<()>;
     async fn read_coils(
         &self,
         channel: &mut Channel,
