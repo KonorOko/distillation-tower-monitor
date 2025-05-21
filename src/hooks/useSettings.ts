@@ -18,6 +18,7 @@ export function useSettings() {
       if (response.status !== "ok") {
         throw response.error;
       }
+      console.log(response.data);
       setSettings(response.data);
     } catch (error) {
       logger.error(ErrorMessages.FETCH_ERROR + (error as Error).message);

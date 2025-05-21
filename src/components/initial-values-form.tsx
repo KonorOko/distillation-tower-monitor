@@ -14,18 +14,9 @@ import { Input } from "@/components/ui/input";
 import { useData } from "@/hooks/useData";
 import { useVariables } from "@/hooks/useVariables";
 import { cn } from "@/lib/utils";
+import { formSchema } from "@/schemas/settings";
 import { Info } from "lucide-react";
-import { useEffect } from "react";
-
-const formSchema = z.object({
-  initialMass: z.coerce
-    .number({ invalid_type_error: "Must be a number" })
-    .positive("The value must be positive"),
-  initialComposition: z.coerce
-    .number({ invalid_type_error: "Must be a number" })
-    .min(0, "The minimum value is 0")
-    .max(100, "The maximum value is 1"),
-});
+import { toast } from "sonner";
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -36,7 +27,7 @@ interface InitialValuesFormProps {
 
 export function InitialValuesForm({
   className,
-  defaultValues = { initialMass: undefined, initialComposition: undefined },
+  defaultValues = {},
 }: InitialValuesFormProps) {
   const connected = useData((state) => state.connected);
   const initialMass = useVariables((state) => state.initialMass);
@@ -46,22 +37,15 @@ export function InitialValuesForm({
     (state) => state.setInitialComposition,
   );
 
-  useEffect(() => {
-    if (connected !== "file") {
-      form.reset();
-      return;
-    }
-    form.setValue("initialMass", initialMass || 0);
-    form.setValue("initialComposition", initialComposition || 0);
-  }, [initialMass, initialComposition, connected]);
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues,
   });
 
   const handleSubmit = async (values: FormValues) => {
-    setInitialMass(values.initialMass);
-    setInitialComposition(values.initialComposition);
+    setInitialMass(values.initialMass ?? 0);
+    setInitialComposition(values.initialComposition ?? 0);
+    toast.success("Initial values set");
   };
 
   return (
@@ -84,9 +68,6 @@ export function InitialValuesForm({
                   <Input
                     placeholder="Ej: 100"
                     {...field}
-                    value={field.value || ""}
-                    type="number"
-                    step="0.01"
                     className="max-w-full"
                     disabled={connected === "file"}
                   />
@@ -108,11 +89,6 @@ export function InitialValuesForm({
                   <Input
                     placeholder="Ej: 0.89"
                     {...field}
-                    value={field.value || ""}
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
                     className="w-full max-w-full"
                     disabled={connected === "file"}
                   />

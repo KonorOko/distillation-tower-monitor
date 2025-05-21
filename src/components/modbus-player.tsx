@@ -39,13 +39,16 @@ export function ModbusPlayer() {
         }
       };
 
-      const validData = settingsSchema.safeParse(settings);
+      const validData = settingsSchema.safeParse(settings.modbus);
+      console.log("Settings to connect", settings);
       if (!validData.success) {
         toast.error("Missing settings");
+        console.log(validData.error.format());
         return;
       }
       if (!initialMass || !initialComposition) {
         toast.error("Missing initial values");
+        console.log("Missing initial values");
         return;
       }
 
@@ -75,10 +78,8 @@ export function ModbusPlayer() {
         </Button>
       </SettingsDialog>
       <Button
-        className={cn(
-          "rounded-none border-x-[0.1px] border-x-gray-700",
-          connected === "modbus" && "bg-red-500",
-        )}
+        className={cn("rounded-none border-x-[0.1px] border-x-gray-700")}
+        variant={connected === "modbus" ? "secondary" : "default"}
         onClick={handleConnection}
       >
         <Power className="h-4 w-4" />

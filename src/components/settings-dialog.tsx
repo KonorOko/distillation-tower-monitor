@@ -52,6 +52,7 @@ export function SettingsDialog({ children }: { children: React.ReactNode }) {
   async function onSubmit(values: z.infer<typeof settingsSchema>) {
     const { usbPort, baudrate, initialAddress, count, timeout, unitId } =
       values;
+    console.log(values);
     try {
       const newSettings: Partial<SettingsType> = {
         modbus: {

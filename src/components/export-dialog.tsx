@@ -28,7 +28,7 @@ export function ExportDialog({ children }: { children: React.ReactNode }) {
   };
 
   const handleDialog = async () => {
-    const path = await commands.filePath();
+    const path = await commands.folderPath();
     setFolderPath(path);
   };
   return (

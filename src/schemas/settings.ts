@@ -12,3 +12,15 @@ export const settingsSchema = z.object({
   baudrate: z.number().min(9600).max(115200),
   unitId: z.number().int().min(0).max(255),
 });
+
+export const formSchema = z.object({
+  initialMass: z.coerce
+    .number({ invalid_type_error: "Must be a number" })
+    .nonnegative("Mass must be a positive number")
+    .or(z.literal("").transform(() => undefined)),
+  initialComposition: z.coerce
+    .number({ invalid_type_error: "Must be a number" })
+    .min(0, "Composition must be between 0 and 1")
+    .max(1, "Composition must be between 0 and 1")
+    .or(z.literal("").transform(() => undefined)),
+});
