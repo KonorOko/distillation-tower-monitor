@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use specta::Type;
 
 #[derive(Debug)]
 pub struct EquationParams {
@@ -33,7 +34,7 @@ impl Default for EquationParams {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Type)]
 pub struct CompositionResult {
     pub x_1: Option<f64>,
     pub y_1: Option<f64>,

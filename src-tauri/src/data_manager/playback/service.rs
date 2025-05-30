@@ -74,6 +74,10 @@ impl DataProvider for PlaybackDataProvider {
         self.current_index
     }
 
+    fn has_next(&self) -> bool {
+        self.current_index < self.data.len()
+    }
+
     async fn disconnect(&self) -> Result<()> {
         Ok(())
     }

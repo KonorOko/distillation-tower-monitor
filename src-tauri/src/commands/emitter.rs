@@ -1,8 +1,11 @@
 use log::info;
+use std::sync::Arc;
 use std::time::Instant;
 use tauri::{AppHandle, Emitter};
 use tokio::time::Duration;
 
+use crate::data_manager::types::ColumnEntry;
+use crate::errors::{DataError, Error};
 use crate::AppState;
 use tauri::State;
 
@@ -27,24 +30,36 @@ pub async fn send_column_data(
 
         let (speed, entry) = {
             let mut transmission_guard = app_state.transmission_state.lock().await;
-            print!("\n------------------------\n");
-            println!("\nTransmission state: {:?}", transmission_guard.is_running);
-            println!("Paused: {}", transmission_guard.is_paused);
-            println!("Speed: {}", transmission_guard.speed);
 
             if !transmission_guard.is_running {
                 return Ok(());
             }
 
             if transmission_guard.is_paused {
+                drop(transmission_guard);
                 tokio::time::sleep(Duration::from_millis(200)).await;
                 continue;
             }
 
-            let entry = transmission_guard
+            let entry_result = transmission_guard
                 .data_provider
                 .get_next_entry(number_plates, initial_mass, initial_concentration)
-                .await?;
+                .await;
+
+            let entry = match entry_result {
+                Err(Error::DataError(DataError::NoDataError)) => {
+                    info!("No more data to send, pausing transmission.");
+                    transmission_guard.set_is_paused(true);
+                    continue;
+                }
+                Err(e) => {
+                    return {
+                        info!("Error getting next entry: {}, of type {:?}", e, e);
+                        Err(e.to_string())
+                    }
+                }
+                Ok(e) => e,
+            };
 
             (transmission_guard.speed, entry)
         };
@@ -69,6 +84,11 @@ pub async fn send_column_data(
 pub async fn toggle_column_data(app_state: State<'_, AppState>) -> Result<String, String> {
     info!("Toggling column data");
     let mut transmission_state = app_state.transmission_state.lock().await;
+
+    if !transmission_state.data_provider.has_next() {
+        return Ok("paused".to_string());
+    }
+
     transmission_state.toggle();
 
     let is_paused = transmission_state.is_paused;
@@ -78,6 +98,45 @@ pub async fn toggle_column_data(app_state: State<'_, AppState>) -> Result<String
     } else {
         Ok("running".to_string())
     }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn refresh_data(
+    app_state: State<'_, AppState>,
+    data_amount: i32,
+) -> Result<Vec<Arc<ColumnEntry>>, String> {
+    info!("Refreshing data with amount: {}", data_amount);
+    let start = std::time::Instant::now();
+    let mut transmission_state = app_state.transmission_state.lock().await;
+
+    let index = transmission_state.data_provider.get_current_index();
+    let initial_index = index.saturating_sub(data_amount as usize);
+
+    transmission_state.data_provider.skip(-data_amount as i64)?;
+
+    let mut new_data = Vec::new();
+
+    for _ in initial_index..index {
+        let entry = transmission_state
+            .data_provider
+            .get_next_entry(0, 0.0, 0.0)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        new_data.push(entry);
+    }
+    println!("{:?}", start.elapsed());
+    Ok(new_data)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn set_is_paused(app_state: State<'_, AppState>, is_paused: bool) -> Result<(), String> {
+    info!("Setting is_paused to {}", is_paused);
+    let mut transmission_state = app_state.transmission_state.lock().await;
+    transmission_state.set_is_paused(is_paused);
+    Ok(())
 }
 
 #[tauri::command]

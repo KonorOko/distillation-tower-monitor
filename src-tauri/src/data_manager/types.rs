@@ -1,10 +1,11 @@
 use crate::calculations::types::CompositionResult;
 use serde::Serialize;
+use specta::Type;
 
-#[derive(Default, Clone, Serialize, Debug)]
+#[derive(Default, Clone, Serialize, Debug, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ColumnEntry {
-    pub timestamp: u64,
+    pub timestamp: u32,
     pub temperatures: Vec<f64>,
     pub compositions: Vec<CompositionResult>,
     pub percentage_complete: f64,
@@ -14,6 +15,7 @@ pub struct ColumnEntry {
 pub struct ColumnStructure {
     pub number_plates: usize,
     pub has_compositions: bool,
+    pub has_distilled_mass: bool,
     pub timestamp_column: usize,
     pub temperatures_start: usize,
     pub compositions_x_start: Option<usize>,

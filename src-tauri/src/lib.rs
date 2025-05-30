@@ -10,7 +10,8 @@ mod settings;
 use crate::commands::data_handle::{export_data, import_data};
 use crate::commands::dialogs::{file_path, folder_path};
 use crate::commands::emitter::{
-    cancel_column_data, handle_skip, send_column_data, set_speed, toggle_column_data,
+    cancel_column_data, handle_skip, refresh_data, send_column_data, set_is_paused, set_speed,
+    toggle_column_data,
 };
 use crate::commands::modbus::{connect_modbus, disconnect_modbus};
 use crate::commands::settings::{available_ports, get_settings, save_settings};
@@ -121,7 +122,9 @@ pub fn run() {
         handle_skip,
         set_speed,
         available_ports,
-        toggle_column_data
+        toggle_column_data,
+        set_is_paused,
+        refresh_data
     ]);
 
     #[cfg(debug_assertions)]

@@ -88,7 +88,7 @@ impl DataProvider for LiveDataProvider {
             timestamp: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
-                .as_secs(),
+                .as_secs() as u32,
             temperatures: inter_temps,
             compositions,
             percentage_complete: 0.0,
@@ -107,6 +107,10 @@ impl DataProvider for LiveDataProvider {
     fn reset(&mut self) -> Result<()> {
         self.history.clear();
         Ok(())
+    }
+
+    fn has_next(&self) -> bool {
+        true
     }
 
     fn get_current_index(&self) -> usize {

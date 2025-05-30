@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -47,6 +48,17 @@ export function InitialValuesForm({
     setInitialComposition(values.initialComposition ?? 0);
     toast.success("Initial values set");
   };
+
+  const handleReset = () => {
+    form.reset({
+      initialMass: initialMass,
+      initialComposition: initialComposition,
+    });
+  };
+
+  useEffect(() => {
+    handleReset();
+  }, [connected]);
 
   return (
     <Form {...form}>

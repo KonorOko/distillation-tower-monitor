@@ -100,8 +100,10 @@ impl ExcelDataImporter {
 
         let mut has_compositions = false;
         let mut number_plates = 0;
+        let has_distilled_mass: bool;
 
         for header in headers.iter().skip(1) {
+            println!("header: {}", header);
             if let Data::String(s) = header {
                 if s.starts_with("Temperature") {
                     number_plates += 1;
@@ -109,6 +111,15 @@ impl ExcelDataImporter {
                     has_compositions = true;
                     break;
                 }
+            }
+        }
+
+        match headers.last() {
+            Some(Data::String(s)) if s.starts_with("Distilled Mass") => {
+                has_distilled_mass = true;
+            }
+            _ => {
+                has_distilled_mass = false;
             }
         }
 
@@ -135,6 +146,7 @@ impl ExcelDataImporter {
         Ok(ColumnStructure {
             number_plates,
             has_compositions,
+            has_distilled_mass,
             timestamp_column: 0,
             temperatures_start: 1,
             compositions_x_start,
@@ -181,7 +193,7 @@ impl ExcelDataImporter {
                 .get(structure.timestamp_column)
                 .and_then(|cell| cell.as_f64())
             {
-                Some(ts) => ts as u64,
+                Some(ts) => ts as u32,
                 None => continue,
             };
 
@@ -237,11 +249,20 @@ impl ExcelDataImporter {
                     .collect()
             };
 
-            let distilled_mass = self.calculation_service.calculate_distilled_mass(
-                initial_composition,
-                initial_mass,
-                imported_data.clone(),
-            );
+            let distilled_mass: f64;
+
+            if structure.has_distilled_mass {
+                distilled_mass = row_data
+                    .last()
+                    .and_then(|cell| cell.as_f64())
+                    .unwrap_or(0.0);
+            } else {
+                distilled_mass = self.calculation_service.calculate_distilled_mass(
+                    initial_composition,
+                    initial_mass,
+                    imported_data.clone(),
+                );
+            }
 
             imported_data.push(Arc::new(ColumnEntry {
                 timestamp,
@@ -402,6 +423,12 @@ impl ExcelDataExporter {
                         ExportError::ExportDataError(format!("Xlsx error: {}", e))
                     })?;
             }
+
+            worksheet
+                .write(row, (num_plates * 3 + 1) as u16, value.distilled_mass)
+                .map_err(|e: XlsxError| {
+                    ExportError::ExportDataError(format!("Xlsx error: {}", e))
+                })?;
         }
         Ok(())
     }

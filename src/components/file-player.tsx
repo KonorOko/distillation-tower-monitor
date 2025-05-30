@@ -8,6 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { MAX_DATA_LENGTH } from "@/constants";
 import { useData } from "@/hooks/useData";
 import { cn } from "@/lib/utils";
 import {
@@ -37,6 +38,8 @@ export function FilePlayer({ className = "" }: { className?: string }) {
   const connected = useData((state) => state.connected);
   const fileProgress = useData((state) => state.fileProgress);
   const setConnected = useData((state) => state.setConnected);
+  const setFileProgress = useData((state) => state.setFileProgress);
+  const refreshColumnData = useData((state) => state.refreshColumnData);
 
   // Handle speed change
   const handleSpeedChange = async (value: string) => {
@@ -50,15 +53,37 @@ export function FilePlayer({ className = "" }: { className?: string }) {
 
   // Handle skip forward/backward
   const handleSkip = async (amount: number) => {
+    const isPausedBefore = connected === "paused" ? true : false;
+
+    if (!isPausedBefore) {
+      const pausedResponse = await commands.setIsPaused(true);
+      if (pausedResponse.status !== "ok") {
+        console.log("Error unpausing:", pausedResponse.error);
+        return;
+      }
+    }
+
     const response = await commands.handleSkip(amount);
     if (response.status !== "ok") {
       console.log("Error skipping:", response.error);
+    }
+
+    const newData = await commands.refreshData(MAX_DATA_LENGTH);
+
+    if (newData.status !== "ok") {
+      console.log("Error refreshing data:", newData.error);
+      return;
+    }
+
+    refreshColumnData(newData.data);
+
+    if (!isPausedBefore) {
+      await commands.setIsPaused(false);
     }
   };
 
   // Handle toggle connection
   const handleToggle = async () => {
-    if (fileProgress === 100) return;
     if (connected === "file" || connected === "paused") {
       const response = await commands.toggleColumnData();
       if (response.status !== "ok") {
@@ -99,22 +124,22 @@ export function FilePlayer({ className = "" }: { className?: string }) {
           </DropdownMenu>
 
           <div className="mx-1 flex items-center">
-            <DefaultTooltip text="Rewind 1 hr">
+            <DefaultTooltip text="Rewind 15 min">
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                onClick={() => handleSkip(-1 * 60 * 60)}
+                onClick={() => handleSkip(-15 * 60)}
               >
                 <Rewind className="h-4 w-4" />
               </Button>
             </DefaultTooltip>
-            <DefaultTooltip text="Rewind 30 min">
+            <DefaultTooltip text="Rewind 5 min">
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                onClick={() => handleSkip(-0.5 * 60 * 60)}
+                onClick={() => handleSkip(-5 * 60)}
               >
                 <SkipBack className="h-4 w-4" />
               </Button>
@@ -128,23 +153,23 @@ export function FilePlayer({ className = "" }: { className?: string }) {
               )}
             </Button>
 
-            <DefaultTooltip text="Skip 30 min">
+            <DefaultTooltip text="Skip 5 min">
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                onClick={() => handleSkip(0.5 * 60 * 60)}
+                onClick={() => handleSkip(5 * 60)}
               >
                 <SkipForward className="h-4 w-4" />
               </Button>
             </DefaultTooltip>
 
-            <DefaultTooltip text="Skip 1 hour">
+            <DefaultTooltip text="Skip 15 min">
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                onClick={() => handleSkip(1 * 60 * 60)}
+                onClick={() => handleSkip(15 * 60)}
               >
                 <FastForward className="h-4 w-4" />
               </Button>

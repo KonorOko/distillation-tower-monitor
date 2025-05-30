@@ -106,6 +106,22 @@ async toggleColumnData() : Promise<Result<string, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async setIsPaused(isPaused: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_is_paused", { isPaused }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async refreshData(dataAmount: number) : Promise<Result<ColumnEntry[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("refresh_data", { dataAmount }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -119,6 +135,8 @@ async toggleColumnData() : Promise<Result<string, string>> {
 
 /** user-defined types **/
 
+export type ColumnEntry = { timestamp: number; temperatures: number[]; compositions: CompositionResult[]; percentageComplete: number; distilledMass: number }
+export type CompositionResult = { x_1: number | null; y_1: number | null }
 export type DataError = { type: "EmptyDataError" } | { type: "NoMoreDataError" } | { type: "NoDataError" } | { type: "CustomError"; data: string }
 export type Error = { type: "SettingsError"; data: SettingsError } | { type: "FileError"; data: FileError } | { type: "ModbusError"; data: ModbusError } | { type: "RootError"; data: RootError } | { type: "DataError"; data: DataError } | { type: "ImportError"; data: ImportError } | { type: "ExportError"; data: ExportError }
 export type ExportError = { type: "InvalidFormat"; data: string } | { type: "NoDataError" } | { type: "ExportDataError"; data: string }

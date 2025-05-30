@@ -64,10 +64,13 @@ impl CalculationService {
             return 0.0;
         }
 
-        let (x_0, m_0) = match (initial_composition, initial_mass) {
+        let (w_0, m_0) = match (initial_composition, initial_mass) {
             (Some(comp), Some(mass)) => (comp, mass),
             _ => return 0.0,
         };
+        let net = w_0 / 46.07;
+        let nh2o = (1.0 - w_0) / 18.02;
+        let x_0 = net / (net + nh2o);
 
         for i in 0..history.len() - 1 {
             if history[i].compositions.is_empty() || history[i + 1].compositions.is_empty() {
@@ -80,12 +83,12 @@ impl CalculationService {
             };
 
             let x_d0 = match history[i].compositions.last() {
-                Some(comp) => comp.x_1,
+                Some(comp) => comp.y_1,
                 None => continue,
             };
 
-            let x_df = match history[i + 1].compositions.first() {
-                Some(comp) => comp.x_1,
+            let x_df = match history[i + 1].compositions.last() {
+                Some(comp) => comp.y_1,
                 None => continue,
             };
 
@@ -96,16 +99,24 @@ impl CalculationService {
 
             if let (Some(x_d0), Some(x_df), Some(x_b0), Some(x_bf)) = (x_d0, x_df, x_b0, x_bf) {
                 if x_b0 > x_0 {
-                    println!("Skipping value: x_b0 = {}; x_0 = {}", x_b0, x_0);
                     continue;
                 }
+
                 let dx = x_bf - x_b0;
+
+                if dx < 1e-10 {
+                    continue;
+                }
+
                 let f_1 = f(x_b0, x_d0);
                 let f_0 = f(x_bf, x_df);
                 inte += 0.5 * (f_1 + f_0) * dx;
             }
         }
-        let distilled_mass = m_0 - (inte.exp() * m_0);
+
+        let remaining_mass = (-inte).exp() * m_0;
+        let distilled_mass = m_0 - remaining_mass;
+
         return distilled_mass;
     }
 
@@ -161,4 +172,12 @@ fn calculate_ks(gamma: f64, ps: f64, p: f64) -> f64 {
 
 fn calculate_y(k: f64, x: f64) -> f64 {
     return k * x;
+}
+
+fn comp_mol_to_comp_mass(x: f64, m: f64) -> f64 {
+    return 0.0;
+}
+
+fn comp_mass_to_comp_mol(w: f64, m: f64) -> f64 {
+    return 0.0;
 }
