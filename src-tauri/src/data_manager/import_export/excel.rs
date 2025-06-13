@@ -1,5 +1,5 @@
 use crate::calculations::service::CalculationService;
-use crate::calculations::types::CompositionResult;
+use crate::calculations::types::{CompositionConfig, CompositionResult};
 use crate::data_manager::types::{ColumnEntry, ColumnStructure};
 use crate::errors::{Error, ExportError, ImportError, Result};
 use calamine::{open_workbook, Data, DataType, Range, Reader, Xlsx};
@@ -239,8 +239,9 @@ impl ExcelDataImporter {
                 temperatures
                     .iter()
                     .map(|&temp| {
+                        let config = CompositionConfig::new();
                         self.calculation_service
-                            .calculate_composition(None, temp, None, None)
+                            .calculate_composition(temp, Some(config.clone()))
                             .unwrap_or_else(|_| CompositionResult {
                                 x_1: None,
                                 y_1: None,

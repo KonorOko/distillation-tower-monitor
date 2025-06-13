@@ -1,11 +1,12 @@
 use crate::calculations::service::CalculationService;
-use crate::calculations::types::CompositionResult;
+use crate::calculations::types::{CompositionConfig, CompositionResult};
 use crate::data_manager::provider::DataProvider;
 use crate::data_manager::types::ColumnEntry;
 use crate::errors::{DataError, Result};
 use crate::modbus::client::ModbusClient;
 use crate::modbus::service::ModbusService;
 use async_trait::async_trait;
+use log::debug;
 use rodbus::client::Channel;
 use rodbus::{AddressRange, UnitId};
 use std::sync::Arc;
@@ -66,14 +67,20 @@ impl DataProvider for LiveDataProvider {
             temperatures[1].value as f64 / 100.0,
         );
 
-        let mut compositions = Vec::with_capacity(number_plates as usize);
+        let mut compositions = Vec::with_capacity(inter_temps.len());
+
+        let config = CompositionConfig::new();
+
         for &temp in &inter_temps {
             let composition = self
                 .calculation_service
-                .calculate_composition(None, temp, None, None)
-                .unwrap_or_else(|_| CompositionResult {
-                    x_1: None,
-                    y_1: None,
+                .calculate_composition(temp, Some(config.clone()))
+                .unwrap_or_else(|e| {
+                    debug!("Composition calculation error at temp {}: {:?}", temp, e);
+                    CompositionResult {
+                        x_1: None,
+                        y_1: None,
+                    }
                 });
             compositions.push(composition);
         }

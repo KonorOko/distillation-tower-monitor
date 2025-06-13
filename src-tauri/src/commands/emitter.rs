@@ -1,6 +1,5 @@
-use log::info;
+use log::{debug, info};
 use std::sync::Arc;
-use std::time::Instant;
 use tauri::{AppHandle, Emitter};
 use tokio::time::Duration;
 
@@ -19,15 +18,13 @@ pub async fn send_column_data(
     initial_concentration: f32,
 ) -> Result<(), String> {
     info!("Initializing send_column_data...");
+
     {
-        // initialize transmission state
         let transmission_guard = app_state.transmission_state.clone();
         transmission_guard.lock().await.set_is_running(true);
     }
 
     loop {
-        let start_time = Instant::now();
-
         let (speed, entry) = {
             let mut transmission_guard = app_state.transmission_state.lock().await;
 
@@ -68,9 +65,11 @@ pub async fn send_column_data(
             history_guard.history.push(entry.clone());
         }
 
-        let elapsed_time = start_time.elapsed();
-        println!("Elapsed time: {:?}", elapsed_time);
-        println!("\nSending: {:?}", entry);
+        info!(
+            "Data collected: Mass={}, Concentration={}",
+            initial_mass, initial_concentration
+        );
+
         app_handle
             .emit("column_data", entry)
             .map_err(|e| e.to_string())?;
@@ -126,7 +125,11 @@ pub async fn refresh_data(
 
         new_data.push(entry);
     }
-    println!("{:?}", start.elapsed());
+
+    if log::log_enabled!(log::Level::Debug) {
+        debug!("Refresh completed in {:?}", start.elapsed());
+    }
+
     Ok(new_data)
 }
 
@@ -155,7 +158,7 @@ pub async fn cancel_column_data(app_state: State<'_, AppState>) -> Result<(), St
 #[tauri::command]
 #[specta::specta]
 pub async fn handle_skip(app_state: State<'_, AppState>, skip_count: i32) -> Result<(), String> {
-    info!("Handling skip {} seconds", skip_count);
+    info!("Handling skip operations: {}", skip_count);
     let mut transmission_guard = app_state.transmission_state.lock().await;
     transmission_guard.data_provider.skip(skip_count as i64)?;
     Ok(())

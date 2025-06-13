@@ -1,12 +1,14 @@
 #[cfg(test)]
 mod tests {
     use crate::calculations::service::CalculationService;
+    use crate::calculations::types::CompositionConfig;
 
     #[test]
     fn test_calculate_composition() {
         let service = CalculationService::new();
+        let config = CompositionConfig::new();
         let result = service
-            .calculate_composition(Some(0.5), 80.0, Some(1e-6), Some(100))
+            .calculate_composition(80.0, Some(config.clone()))
             .unwrap();
 
         assert!(result.x_1.unwrap() > 0.0 && result.x_1.unwrap() < 1.0);

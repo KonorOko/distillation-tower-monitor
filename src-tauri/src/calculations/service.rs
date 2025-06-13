@@ -1,9 +1,27 @@
-use super::types::{CompositionResult, EquationParams};
+use super::types::{CompositionConfig, CompositionResult, EquationParams};
 use crate::data_manager::types::ColumnEntry;
 use crate::errors::Result;
 use crate::math::{interpolate, newton_raphson, round};
+use serde::{Deserialize, Serialize};
 use std::f64::consts::E;
 use std::sync::Arc;
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct CalculationHistory {
+    i: usize,
+    x_0: f64,
+    x_b0: f64,
+    x_d0: f64,
+    x_bf: f64,
+    x_df: f64,
+    dx: f64,
+    f_1: f64,
+    f_0: f64,
+    partial_inte: f64,
+    inte: f64,
+    partial_remaining_mass: f64,
+    partial_mass: f64,
+}
 
 #[derive(Debug)]
 pub struct CalculationService {
@@ -19,14 +37,13 @@ impl CalculationService {
 
     pub fn calculate_composition(
         &self,
-        x_0: Option<f64>,
         temp: f64,
-        tol: Option<f64>,
-        max_iter: Option<u64>,
+        config: Option<CompositionConfig>,
     ) -> Result<CompositionResult> {
-        let x_0 = x_0.unwrap_or(0.5);
-        let tol = tol.unwrap_or(1e-6);
-        let max_iter = max_iter.unwrap_or(1000);
+        let config = config.unwrap_or_default();
+        let x_0 = config.x_0.unwrap_or(0.5);
+        let tol = config.tol.unwrap_or(1e-6);
+        let max_iter = config.max_iter.unwrap_or(1000);
 
         let params = &self.params;
 
@@ -52,6 +69,7 @@ impl CalculationService {
         initial_mass: Option<f64>,
         history: Vec<Arc<ColumnEntry>>,
     ) -> f64 {
+        // let mut calculations_history = Vec::new();
         let mut inte = 0.0;
         let f = |x_b: f64, x_d: f64| -> f64 {
             if (x_d - x_b).abs() < 1e-10 {
@@ -102,21 +120,16 @@ impl CalculationService {
                     continue;
                 }
 
-                let dx = x_bf - x_b0;
-
-                if dx < 1e-10 {
-                    continue;
-                }
-
+                let dx = x_b0 - x_bf;
                 let f_1 = f(x_b0, x_d0);
                 let f_0 = f(x_bf, x_df);
-                inte += 0.5 * (f_1 + f_0) * dx;
+                let partial_inte = 0.5 * (f_1 + f_0) * dx;
+                inte += partial_inte;
             }
         }
 
         let remaining_mass = (-inte).exp() * m_0;
         let distilled_mass = m_0 - remaining_mass;
-
         return distilled_mass;
     }
 

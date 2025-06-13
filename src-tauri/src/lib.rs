@@ -6,6 +6,7 @@ mod files;
 mod math;
 mod modbus;
 mod settings;
+mod storage;
 
 use crate::commands::data_handle::{export_data, import_data};
 use crate::commands::dialogs::{file_path, folder_path};
@@ -34,7 +35,6 @@ use tokio::sync::Mutex;
 pub struct AppState {
     transmission_state: Arc<Mutex<TransmissionState>>,
     history: Arc<Mutex<History>>,
-    modbus_channel: Arc<Mutex<Option<Channel>>>,
     settings_path: String,
 }
 
@@ -172,7 +172,6 @@ pub fn run() {
             let app_state = AppState {
                 transmission_state: Arc::new(Mutex::new(TransmissionState::new(provider))),
                 history: Arc::new(Mutex::new(History::default())),
-                modbus_channel: Arc::new(Mutex::new(None)),
                 settings_path,
             };
 
