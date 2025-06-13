@@ -1,8 +1,8 @@
 import { MAX_DATA_LENGTH } from "@/constants";
-import { ColumnDataEntry } from "@/types";
 import { formatTime } from "@/lib/utils";
+import { ColumnEntry } from "@/bindings";
 
-export function formatTempPerTime(columnData: ColumnDataEntry[]) {
+export function formatTempPerTime(columnData: ColumnEntry[]) {
   if (!columnData || columnData.length === 0) return [];
   let initialDate = columnData[0].timestamp;
   const lastData = columnData.slice(-MAX_DATA_LENGTH);
@@ -21,7 +21,7 @@ export function formatTempPerTime(columnData: ColumnDataEntry[]) {
   return formatedData;
 }
 
-export function formatYvsX(columnData: ColumnDataEntry[]) {
+export function formatYvsX(columnData: ColumnEntry[]) {
   let lastEntry = columnData.slice(-1);
   if (!lastEntry || lastEntry.length === 0) return [];
   let allCompNone = lastEntry[0].compositions.every(
@@ -37,7 +37,7 @@ export function formatYvsX(columnData: ColumnDataEntry[]) {
   );
 }
 
-export function formatXYvsTemp(columnData: ColumnDataEntry[]) {
+export function formatXYvsTemp(columnData: ColumnEntry[]) {
   if (!columnData || columnData.length === 0) return [];
   let current = columnData.slice(-1)[0];
   let data = [];
@@ -59,7 +59,7 @@ export function formatXYvsTemp(columnData: ColumnDataEntry[]) {
   return data.reverse();
 }
 
-export function formatDistillationChart(columnData: ColumnDataEntry[]) {
+export function formatDistillationChart(columnData: ColumnEntry[]) {
   if (!columnData || columnData.length === 0) return [];
   let initialDate = columnData[0].timestamp;
   const lastData = columnData.slice(-MAX_DATA_LENGTH);

@@ -20,7 +20,7 @@ import {
   SkipBack,
   SkipForward,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { commands } from "@/bindings";
 import {
@@ -94,6 +94,12 @@ export function FilePlayer({ className = "" }: { className?: string }) {
       setConnected(newStatus);
     }
   };
+
+  useEffect(() => {
+    if (connected === "modbus") {
+      handleSpeedChange("1");
+    }
+  }, [connected]);
 
   return (
     <header
