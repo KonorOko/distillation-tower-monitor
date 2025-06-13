@@ -37,9 +37,9 @@ async disconnectModbus() : Promise<Result<null, Error>> {
     else return { status: "error", error: e  as any };
 }
 },
-async exportData(path: string) : Promise<Result<null, string>> {
+async exportData(path: string, initialMass: number, initialComposition: number) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("export_data", { path }) };
+    return { status: "ok", data: await TAURI_INVOKE("export_data", { path, initialMass, initialComposition }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

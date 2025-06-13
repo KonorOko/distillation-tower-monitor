@@ -81,7 +81,7 @@ export function InitialValuesForm({
                     placeholder="Ej: 100"
                     {...field}
                     className="max-w-full"
-                    disabled={connected === "file"}
+                    disabled={connected !== "none"}
                   />
                 </FormControl>
               </FormItem>
@@ -102,7 +102,7 @@ export function InitialValuesForm({
                     placeholder="Ej: 0.89"
                     {...field}
                     className="w-full max-w-full"
-                    disabled={connected === "file"}
+                    disabled={connected !== "none"}
                   />
                 </FormControl>
               </FormItem>

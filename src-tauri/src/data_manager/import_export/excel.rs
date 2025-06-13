@@ -304,7 +304,7 @@ impl ExcelDataExporter {
 
         self.write_initial_config(worksheet, initial_mass, initial_composition)?;
 
-        let start_row = 3;
+        let start_row = 4;
         let Some(first) = column_data.first() else {
             return Err(Error::ExportError(ExportError::NoDataError));
         };

@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useVariables } from "@/hooks/useVariables";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -16,14 +17,19 @@ export function ExportDialog({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [fileName, setFileName] = useState("column-data");
   const [folderPath, setFolderPath] = useState("");
+  const initialMass = useVariables((state) => state.initialMass);
+  const initialComposition = useVariables((state) => state.initialComposition);
 
   const handleExport = () => {
     const newPath = folderPath + "/" + fileName + ".xlsx";
-    toast.promise(commands.exportData(newPath), {
-      loading: "Saving data...",
-      error: "Error saving data",
-      success: "Data saved",
-    });
+    toast.promise(
+      commands.exportData(newPath, initialMass || 0, initialComposition || 0),
+      {
+        loading: "Saving data...",
+        error: "Error saving data",
+        success: "Data saved",
+      },
+    );
     setIsOpen(false);
   };
 

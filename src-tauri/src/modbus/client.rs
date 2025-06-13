@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use super::types::ModbusConnection;
 use crate::errors::{ModbusError, Result};
 use crate::settings::types::ModbusSettings;

@@ -39,7 +39,12 @@ pub async fn import_data(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn export_data(app_state: State<'_, AppState>, path: String) -> Result<(), String> {
+pub async fn export_data(
+    app_state: State<'_, AppState>,
+    path: String,
+    initial_mass: f32,
+    initial_composition: f32,
+) -> Result<(), String> {
     info!("Export data to excel...");
     let calculation_service = CalculationService::new();
     let exporter = ExcelDataExporter::new(calculation_service);
@@ -47,7 +52,12 @@ pub async fn export_data(app_state: State<'_, AppState>, path: String) -> Result
     let history_guard = app_state.history.lock().await;
     let history = history_guard.history.clone();
     exporter
-        .export_data(&history, 1000.0, 0.98, &path)
+        .export_data(
+            &history,
+            initial_mass as f64,
+            initial_composition as f64,
+            &path,
+        )
         .map_err(|e| e.to_string())?;
 
     Ok(())
