@@ -10,7 +10,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useData } from "@/hooks/useData";
-import { useVariables } from "@/hooks/useVariables";
 import { cn } from "@/lib/utils";
 import { FileSpreadsheet, Upload, X } from "lucide-react";
 import { useState } from "react";
@@ -18,13 +17,9 @@ import { toast } from "sonner";
 
 export function ImportDialog({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-  const setFilePath = useData((state) => state.setFilePath);
-  const filePath = useData((state) => state.filePath);
-  const connected = useData((state) => state.connected);
-  const clearData = useData((state) => state.clearData);
-  const setConnected = useData((state) => state.setConnected);
-  const numberPlates = useVariables((state) => state.numberPlates);
+  const [filePath, setFilePath] = useState<string>("");
+  const isImporting = useData((state) => state.isImporting);
+  const setIsImporting = useData((state) => state.setIsImporting);
 
   const handleImport = () => {
     if (!filePath) {
@@ -35,23 +30,20 @@ export function ImportDialog({ children }: { children: React.ReactNode }) {
     setIsImporting(true);
 
     const handleFile = async () => {
-      const response = await commands.importData(filePath);
+      const response = await commands.importToHistory(filePath);
       if (response.status !== "ok") {
         throw new Error("Failed to import data");
       }
-      commands.sendColumnData(numberPlates, 0, 0);
     };
 
     toast.promise(handleFile(), {
       loading: "Importing data...",
       error: "Failed to import data",
-      success: () => {
-        setConnected("file");
-        return "Data imported successfully";
-      },
+      success: "Data imported successfully",
       finally: () => {
         setIsImporting(false);
         setIsOpen(false);
+        setFilePath("");
       },
     });
   };
@@ -62,7 +54,8 @@ export function ImportDialog({ children }: { children: React.ReactNode }) {
   };
 
   const clearSelection = async () => {
-    await clearData();
+    setFilePath("");
+    setIsImporting(false);
   };
 
   const getFileName = (path: string | null): string => {
@@ -136,7 +129,7 @@ export function ImportDialog({ children }: { children: React.ReactNode }) {
           </Button>
           <Button
             onClick={handleImport}
-            disabled={!filePath || isImporting || connected !== "none"}
+            disabled={!filePath || isImporting}
             className={cn(
               "gap-2",
               isImporting && "cursor-not-allowed opacity-80",

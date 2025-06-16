@@ -1,27 +1,9 @@
-use super::types::{CompositionConfig, CompositionResult, EquationParams};
+use super::types::{CalculationStep, CompositionConfig, CompositionResult, EquationParams};
 use crate::data_manager::types::ColumnEntry;
 use crate::errors::Result;
 use crate::math::{interpolate, newton_raphson, round};
-use serde::{Deserialize, Serialize};
 use std::f64::consts::E;
 use std::sync::Arc;
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-struct CalculationHistory {
-    i: usize,
-    x_0: f64,
-    x_b0: f64,
-    x_d0: f64,
-    x_bf: f64,
-    x_df: f64,
-    dx: f64,
-    f_1: f64,
-    f_0: f64,
-    partial_inte: f64,
-    inte: f64,
-    partial_remaining_mass: f64,
-    partial_mass: f64,
-}
 
 #[derive(Debug)]
 pub struct CalculationService {
@@ -43,7 +25,7 @@ impl CalculationService {
         let config = config.unwrap_or_default();
         let x_0 = config.x_0.unwrap_or(0.5);
         let tol = config.tol.unwrap_or(1e-6);
-        let max_iter = config.max_iter.unwrap_or(1000);
+        let max_iter = config.max_iter.unwrap_or(1000) as u64;
 
         let params = &self.params;
 
@@ -65,52 +47,52 @@ impl CalculationService {
 
     pub fn calculate_distilled_mass(
         &self,
-        initial_composition: Option<f64>,
-        initial_mass: Option<f64>,
-        history: Vec<Arc<ColumnEntry>>,
-    ) -> f64 {
-        // let mut calculations_history = Vec::new();
-        let mut inte = 0.0;
-        let f = |x_b: f64, x_d: f64| -> f64 {
-            if (x_d - x_b).abs() < 1e-10 {
-                return 0.0;
-            }
-            1.0 / (x_d - x_b)
-        };
-
-        if history.len() < 2 {
-            return 0.0;
+        w_0: f64,
+        m_0: f64,
+        column_entries: &[Arc<ColumnEntry>],
+    ) -> Vec<CalculationStep> {
+        if column_entries.len() < 2 {
+            return Vec::new();
         }
 
-        let (w_0, m_0) = match (initial_composition, initial_mass) {
-            (Some(comp), Some(mass)) => (comp, mass),
-            _ => return 0.0,
-        };
         let net = w_0 / 46.07;
         let nh2o = (1.0 - w_0) / 18.02;
         let x_0 = net / (net + nh2o);
 
-        for i in 0..history.len() - 1 {
-            if history[i].compositions.is_empty() || history[i + 1].compositions.is_empty() {
+        let mut steps = Vec::new();
+        let mut inte = 0.0;
+
+        let calculate_f = |x_b: f64, x_d: f64| -> f64 {
+            if (x_d - x_b).abs() < 1e-6 {
+                return 0.0;
+            }
+
+            1.0 / (x_d - x_b)
+        };
+
+        for i in 0..column_entries.len() - 1 {
+            if column_entries[i].compositions.is_empty()
+                || column_entries[i + 1].compositions.is_empty()
+            {
                 continue;
             }
 
-            let x_b0 = match history[i].compositions.first() {
+            let x_b0 = match column_entries[i].compositions.first() {
                 Some(comp) => comp.x_1,
                 None => continue,
             };
 
-            let x_d0 = match history[i].compositions.last() {
+            let x_d0 = match column_entries[i].compositions.last() {
                 Some(comp) => comp.y_1,
                 None => continue,
             };
 
-            let x_df = match history[i + 1].compositions.last() {
+            let x_df = match column_entries[i + 1].compositions.last() {
                 Some(comp) => comp.y_1,
                 None => continue,
             };
 
-            let x_bf = match history[i + 1].compositions.first() {
+            let x_bf = match column_entries[i + 1].compositions.first() {
                 Some(comp) => comp.x_1,
                 None => continue,
             };
@@ -121,16 +103,34 @@ impl CalculationService {
                 }
 
                 let dx = x_b0 - x_bf;
-                let f_1 = f(x_b0, x_d0);
-                let f_0 = f(x_bf, x_df);
-                let partial_inte = 0.5 * (f_1 + f_0) * dx;
+                let f_1 = calculate_f(x_b0, x_d0);
+                let f_0 = calculate_f(x_bf, x_df);
+                let partial_inte = 0.5 * (f_0 + f_1) * dx;
+
                 inte += partial_inte;
+
+                let remaining_mass = (-inte).exp() * m_0;
+                let distilled_mass = m_0 - remaining_mass;
+
+                let step = CalculationStep {
+                    timestamp: column_entries[i].timestamp as u32,
+                    step_index: i as u32,
+                    temperatures: column_entries[i].temperatures.clone(),
+                    compositions: column_entries[i].compositions.clone(),
+                    delta_x: Some(dx as f32),
+                    f_0: Some(f_0 as f32),
+                    f_1: Some(f_1 as f32),
+                    partial_integral: Some(partial_inte as f32),
+                    accumulated_integral: Some(inte as f32),
+                    remaining_mass: Some(remaining_mass as f32),
+                    distilled_mass: Some(distilled_mass as f32),
+                };
+
+                steps.push(step);
             }
         }
 
-        let remaining_mass = (-inte).exp() * m_0;
-        let distilled_mass = m_0 - remaining_mass;
-        return distilled_mass;
+        steps
     }
 
     pub fn interpolate_temps(&self, num_plates: i32, t_1: f64, t_n: f64) -> Vec<f64> {
@@ -185,12 +185,4 @@ fn calculate_ks(gamma: f64, ps: f64, p: f64) -> f64 {
 
 fn calculate_y(k: f64, x: f64) -> f64 {
     return k * x;
-}
-
-fn comp_mol_to_comp_mass(x: f64, m: f64) -> f64 {
-    return 0.0;
-}
-
-fn comp_mass_to_comp_mol(w: f64, m: f64) -> f64 {
-    return 0.0;
 }

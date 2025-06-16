@@ -3,6 +3,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use tokio::time::Duration;
 
+use crate::data_manager::playback::PlaybackDataProvider;
 use crate::data_manager::types::ColumnEntry;
 use crate::errors::{DataError, Error};
 use crate::AppState;
@@ -60,14 +61,17 @@ pub async fn send_column_data(
 
             (transmission_guard.speed, entry)
         };
-        {
-            let mut history_guard = app_state.history.lock().await;
-            history_guard.history.push(entry.clone());
-        }
 
-        info!(
-            "Data collected: Mass={}, Concentration={}",
-            initial_mass, initial_concentration
+        debug!(
+            "Data collected: Mass={}, Concentration={}, entry_timestamp={}",
+            initial_mass, initial_concentration, entry.timestamp
+        );
+
+        let calculation_service = &app_state.calculation_service;
+        calculation_service.calculate_distilled_mass(
+            initial_concentration as f64,
+            initial_mass as f64,
+            &[entry.clone()],
         );
 
         app_handle
@@ -76,6 +80,36 @@ pub async fn send_column_data(
 
         tokio::time::sleep(Duration::from_millis(speed)).await;
     }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn load_history_data(
+    app_state: State<'_, AppState>,
+    history_id: String,
+) -> Result<(), String> {
+    info!("Loading history data for ID: {}", history_id);
+    let path = app_state
+        .calculation_history_service
+        .base_dir
+        .join(&history_id);
+
+    info!("Loading history from path: {:?}", path);
+
+    let history = app_state
+        .calculation_history_service
+        .load_history(&path)
+        .map_err(|e| e.to_string())?;
+
+    let entries = app_state
+        .calculation_history_service
+        .convert_history_to_entries(&history);
+
+    let playback_provider = PlaybackDataProvider::new(entries);
+    let mut transmission_guard = app_state.transmission_state.lock().await;
+    transmission_guard.data_provider = Box::new(playback_provider);
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -107,14 +141,36 @@ pub async fn refresh_data(
 ) -> Result<Vec<Arc<ColumnEntry>>, String> {
     info!("Refreshing data with amount: {}", data_amount);
     let start = std::time::Instant::now();
-    let mut transmission_state = app_state.transmission_state.lock().await;
 
+    let history_data = app_state
+        .calculation_history_service
+        .get_current_session_data()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !history_data.is_empty() {
+        let len = history_data.len();
+        let start_idx = if data_amount as usize >= len {
+            0
+        } else {
+            len - data_amount as usize
+        };
+
+        debug!(
+            "Refresh completed in {:?} using calculation history ({} entries)",
+            start.elapsed(),
+            history_data[start_idx..].len()
+        );
+        return Ok(history_data[start_idx..].to_vec());
+    }
+
+    let mut transmission_state = app_state.transmission_state.lock().await;
     let index = transmission_state.data_provider.get_current_index();
     let initial_index = index.saturating_sub(data_amount as usize);
 
     transmission_state.data_provider.skip(-data_amount as i64)?;
 
-    let mut new_data = Vec::new();
+    let mut new_data = Vec::with_capacity(data_amount as usize);
 
     for _ in initial_index..index {
         let entry = transmission_state
@@ -126,9 +182,11 @@ pub async fn refresh_data(
         new_data.push(entry);
     }
 
-    if log::log_enabled!(log::Level::Debug) {
-        debug!("Refresh completed in {:?}", start.elapsed());
-    }
+    debug!(
+        "Refresh completed in {:?} using data provider ({} entries)",
+        start.elapsed(),
+        new_data.len()
+    );
 
     Ok(new_data)
 }
@@ -149,8 +207,11 @@ pub async fn cancel_column_data(app_state: State<'_, AppState>) -> Result<(), St
     let mut transmission_state = app_state.transmission_state.lock().await;
     transmission_state.reset().await?;
 
-    let mut history_guard = app_state.history.lock().await;
-    history_guard.history.clear();
+    let _ = app_state
+        .calculation_history_service
+        .finish_current_history()
+        .await
+        .map_err(|e| debug!("Error finalizing history: {}", e));
 
     Ok(())
 }

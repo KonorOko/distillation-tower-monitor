@@ -1,11 +1,12 @@
 use crate::calculations::service::CalculationService;
-use crate::calculations::types::{CompositionConfig, CompositionResult};
+use crate::calculations::types::{CalculationStep, CompositionConfig, CompositionResult};
 use crate::data_manager::types::{ColumnEntry, ColumnStructure};
 use crate::errors::{Error, ExportError, ImportError, Result};
 use crate::storage::service::CalculationHistoryService;
 use calamine::{open_workbook, Data, DataType, Range, Reader, Xlsx};
-use log::info;
+use log::{debug, info};
 use rust_xlsxwriter::{Workbook, XlsxError};
+use std::io;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -33,23 +34,35 @@ impl ExcelDataImporter {
     }
 
     pub async fn import_to_history(&self, path: &str) -> Result<String> {
-        if self.history_service.is_none() {
-            return Err(ImportError::InvalidFormat("No history service available".into()).into());
-        }
+        // Verificar que tengamos un servicio de historial
+        let history_service = match &self.history_service {
+            Some(service) => service,
+            None => {
+                return Err(ImportError::InvalidFormat("No history service available".into()).into());
+            }
+        };
 
-        let (num_plates, imported_data, initial_mass, initial_concentration) =
-            self.import(path).await?;
+        // Importar los datos del Excel
+        let result = self.import(path).await?;
+        let (number_plates, entries, initial_mass, initial_concentration) = result;
 
-        if imported_data.is_empty() {
+        if entries.is_empty() {
             return Err(ImportError::InvalidFormat("No valid data in Excel file".into()).into());
         }
 
+        if initial_mass.is_none() || initial_concentration.is_none() {
+            return Err(
+                ImportError::InvalidFormat("Missing initial mass or concentration".into()).into(),
+            );
+        }
+
+        // Crear y guardar historial
         let history_id = self
             .create_history_from_entries(
-                &imported_data,
-                num_plates,
-                initial_mass.unwrap_or(0.0),
-                initial_concentration.unwrap_or(0.0),
+                &entries,
+                initial_mass.unwrap(),
+                initial_concentration.unwrap(),
+                history_service,
             )
             .await?;
 
@@ -59,48 +72,105 @@ impl ExcelDataImporter {
     async fn create_history_from_entries(
         &self,
         entries: &[Arc<ColumnEntry>],
-        number_plates: usize,
         initial_mass: f64,
         initial_concentration: f64,
+        history_service: &CalculationHistoryService,
     ) -> Result<String> {
-        let history_service = self.history_service.as_ref().unwrap();
-
+        // Iniciar un nuevo historial
         history_service
-            .start_new_history(number_plates, initial_mass, initial_concentration)
+            .start_new_history(initial_mass, initial_concentration)
             .await
             .map_err(|e| ImportError::InvalidFormat(format!("Failed to start history: {}", e)))?;
 
-        let calculation_service = CalculationService::new();
-        let entries = calculation_service.calculate_distilled_mass(
-            initial_concentration,
-            initial_mass,
-            entries,
-        );
+        let mut inte = 0.0;
+        let mut previous_entry: Option<&Arc<ColumnEntry>> = None;
 
-        for entry in entries.iter() {
+        // Convertir cada entrada a un paso de cálculo
+        for (i, entry) in entries.iter().enumerate() {
+            if i == 0 {
+                previous_entry = Some(entry);
+                continue; // Saltamos la primera entrada ya que necesitamos dos para calcular
+            }
+
+            // Obtener entradas actual y previa
+            let prev = previous_entry.unwrap();
+
+            // Extraer temperaturas y composiciones
+            let x_b0 = prev.compositions.first().and_then(|c| c.x_1).unwrap_or(0.0);
+            let x_d0 = prev.compositions.last().and_then(|c| c.y_1).unwrap_or(0.0);
+            let x_bf = entry.compositions.first().and_then(|c| c.x_1).unwrap_or(0.0);
+            let x_df = entry.compositions.last().and_then(|c| c.y_1).unwrap_or(0.0);
+
+            // Calcular parámetros para el paso
+            let dx = x_b0 - x_bf;
+
+            // Función para calcular factor de separación
+            let calculate_f = |x_b: f64, x_d: f64| -> f64 {
+                if (x_d - x_b).abs() < 1e-10 {
+                    return 0.0;
+                }
+                1.0 / (x_d - x_b)
+            };
+
+            let f_0 = calculate_f(x_b0, x_d0);
+            let f_1 = calculate_f(x_bf, x_df);
+
+            // Calcular integral parcial usando regla trapezoidal
+            let partial_inte = 0.5 * (f_0 + f_1) * dx;
+
+            // Actualizar integral acumulada
+            inte += partial_inte;
+
+            // Calcular masa restante y masa destilada
+            let remaining_mass = (-inte).exp() * initial_mass;
+            let distilled_mass = initial_mass - remaining_mass;
+
+            // Crear el paso de cálculo
+            let step = CalculationStep {
+                timestamp: entry.timestamp,
+                step_index: (i - 1) as u32, // Ajustamos por saltar la primera entrada y convertimos a u32
+                x_re: x_b0,
+                x_do: x_d0,
+                temp_re: prev.temperatures.first().copied().unwrap_or(0.0),
+                temp_do: prev.temperatures.last().copied().unwrap_or(0.0),
+                delta_x: dx,
+                f_0: f_0,
+                f_1: f_1,
+                partial_integral: partial_inte,
+                accumulated_integral: inte,
+                remaining_mass: remaining_mass,
+                distilled_mass: distilled_mass,
+            };
+
+            // Registrar el paso
             history_service
-                .record_step(entry.clone())
+                .record_step(step)
                 .await
                 .map_err(|e| ImportError::InvalidFormat(format!("Failed to record step: {}", e)))?;
+
+            previous_entry = Some(entry);
         }
 
+        // Finalizar y guardar el historial
         let history_path = history_service
             .finish_current_history()
             .await
             .map_err(|e| ImportError::InvalidFormat(format!("Failed to finish history: {}", e)))?;
 
+        // Extraer el ID del historial del path
         let history_id = history_path
             .and_then(|path| {
                 path.file_name()
                     .map(|name| name.to_string_lossy().to_string())
             })
             .unwrap_or_else(|| {
+                // Generar un ID basado en timestamp si no podemos obtener el nombre del archivo
                 format!(
                     "imported_{}",
                     SystemTime::now()
                         .duration_since(UNIX_EPOCH)
                         .unwrap_or_default()
-                        .as_secs() as u32
+                        .as_secs()
                 )
             });
 
@@ -124,8 +194,7 @@ impl ExcelDataImporter {
             .map_err(|_| ImportError::InvalidFormat("Cannot read sheet".into()))?;
 
         let mut initial_mass: Option<f64> = None;
-
-        let mut initial_composition: Option<f64> = None;
+        let mut initial_concentration: Option<f64> = None;
 
         if let Some(cell) = range.get((0, 0)) {
             if let Data::String(label) = cell {
@@ -143,35 +212,42 @@ impl ExcelDataImporter {
             if let Data::String(label) = cell {
                 if label.contains("Initial Composition") {
                     if let Some(Data::Float(value)) = range.get((1, 1)) {
-                        initial_composition = Some(*value);
+                        initial_concentration = Some(*value);
                     } else if let Some(Data::Int(value)) = range.get((1, 1)) {
-                        initial_composition = Some(*value as f64);
+                        initial_concentration = Some(*value as f64);
                     }
                 }
             }
         }
 
-        println!("Initial Mass: {:?}", initial_mass);
-        println!("Initial Composition: {:?}", initial_composition);
+        debug!("Initial Mass: {:?}", initial_mass);
+        debug!("Initial Composition: {:?}", initial_concentration);
 
-        let header_row = if initial_mass.is_some() || initial_composition.is_some() {
+        let header_row = if initial_mass.is_some() || initial_concentration.is_some() {
             4
         } else {
             1
         };
 
-        let (number_plates, column_structure) = self.parse_headers(&range, header_row)?;
+        let column_structure = self.parse_headers(&range, header_row)?;
 
-        let entries = self.process_rows(&range, &column_structure, header_row)?;
+        let entries = self.process_rows(
+            &range,
+            &column_structure,
+            header_row,
+            initial_mass,
+            initial_concentration,
+        )?;
 
-        Ok((number_plates, entries, initial_mass, initial_composition))
+        Ok((
+            column_structure.number_plates,
+            entries,
+            initial_mass,
+            initial_concentration,
+        ))
     }
 
-    fn parse_headers(
-        &self,
-        range: &Range<Data>,
-        header_row: usize,
-    ) -> Result<(usize, ColumnStructure)> {
+    fn parse_headers(&self, range: &Range<Data>, header_row: usize) -> Result<ColumnStructure> {
         let headers = range
             .rows()
             .nth(header_row - 1)
@@ -185,7 +261,6 @@ impl ExcelDataImporter {
         let has_distilled_mass: bool;
 
         for header in headers.iter().skip(1) {
-            println!("header: {}", header);
             if let Data::String(s) = header {
                 if s.starts_with("Temperature") {
                     number_plates += 1;
@@ -225,18 +300,15 @@ impl ExcelDataImporter {
             None
         };
 
-        Ok((
+        Ok(ColumnStructure {
             number_plates,
-            ColumnStructure {
-                number_plates,
-                has_compositions,
-                has_distilled_mass,
-                timestamp_column: 0,
-                temperatures_start: 1,
-                compositions_x_start,
-                compositions_y_start,
-            },
-        ))
+            has_compositions,
+            has_distilled_mass,
+            timestamp_column: 0,
+            temperatures_start: 1,
+            compositions_x_start,
+            compositions_y_start,
+        })
     }
 
     fn process_rows(
@@ -244,6 +316,8 @@ impl ExcelDataImporter {
         range: &Range<Data>,
         structure: &ColumnStructure,
         start_row: usize,
+        initial_mass: Option<f64>,
+        initial_concentration: Option<f64>,
     ) -> Result<Vec<Arc<ColumnEntry>>> {
         let mut imported_data: Vec<Arc<ColumnEntry>> = Vec::new();
         let row_count = range.height();
@@ -267,7 +341,7 @@ impl ExcelDataImporter {
             }
 
             let percentage_complete = if total_rows > 0 {
-                (index as f64 + 1.0) / total_rows as f64 * 100.0
+                ((index as f64 + 1.0) / total_rows as f64 * 100.0) as f64
             } else {
                 0.0
             };
@@ -295,6 +369,7 @@ impl ExcelDataImporter {
             let compositions: Vec<CompositionResult>;
 
             if structure.has_compositions {
+                // Extraer composiciones X si están disponibles
                 let comp_x: Vec<Option<f64>> = match structure.compositions_x_start {
                     Some(start) => row_data
                         .iter()
@@ -305,6 +380,7 @@ impl ExcelDataImporter {
                     None => vec![None; structure.number_plates],
                 };
 
+                // Extraer composiciones Y si están disponibles
                 let comp_y: Vec<Option<f64>> = match structure.compositions_y_start {
                     Some(start) => row_data
                         .iter()
@@ -315,12 +391,14 @@ impl ExcelDataImporter {
                     None => vec![None; structure.number_plates],
                 };
 
+                // Crear resultados de composición a partir de X e Y
                 compositions = comp_x
                     .into_iter()
                     .zip(comp_y.into_iter())
                     .map(|(x, y)| CompositionResult { x_1: x, y_1: y })
                     .collect();
             } else {
+                // Calcular composiciones a partir de temperaturas
                 compositions = temperatures
                     .iter()
                     .map(|&temp| {
@@ -338,14 +416,22 @@ impl ExcelDataImporter {
             let distilled_mass: f64;
 
             if structure.has_distilled_mass {
+                // Si el Excel tiene una columna de masa destilada, usarla
                 distilled_mass = row_data
                     .last()
                     .and_then(|cell| cell.as_f64())
                     .unwrap_or(0.0);
             } else {
-                distilled_mass = 0.0;
+                // Si no, calcular la masa destilada
+                distilled_mass = self.calculation_service.calculate_distilled_mass(
+                    initial_concentration,
+                    initial_mass,
+                    imported_data.clone(),
+                    None,
+                );
             }
 
+            // Crear y agregar la entrada a los datos importados
             imported_data.push(Arc::new(ColumnEntry {
                 timestamp,
                 temperatures,
@@ -363,9 +449,17 @@ impl ExcelDataImporter {
     }
 }
 
-pub struct ExcelDataExporter;
+pub struct ExcelDataExporter {
+    calculation_service: CalculationService,
+}
 
 impl ExcelDataExporter {
+    pub fn new(calculation_service: CalculationService) -> Self {
+        ExcelDataExporter {
+            calculation_service,
+        }
+    }
+
     pub fn export_data(
         &self,
         column_data: &Vec<Arc<ColumnEntry>>,
@@ -457,6 +551,12 @@ impl ExcelDataExporter {
                     ExportError::ExportDataError(format!("Xlsx error: {}", e))
                 })?;
         }
+
+        // Añadir encabezado para la masa destilada
+        worksheet
+            .write_string(2, (num_plates * 3 + 1) as u16, "Distilled Mass")
+            .map_err(|e: XlsxError| ExportError::ExportDataError(format!("Xlsx error: {}", e)))?;
+
         Ok(())
     }
 

@@ -8,21 +8,25 @@ mod modbus;
 mod settings;
 mod storage;
 
-use crate::commands::data_handle::{export_data, import_data};
+use crate::calculations::service::CalculationService;
+use crate::commands::data_handle::{export_data, import_data, import_to_history};
 use crate::commands::dialogs::{file_path, folder_path};
 use crate::commands::emitter::{
-    cancel_column_data, handle_skip, refresh_data, send_column_data, set_is_paused, set_speed,
-    toggle_column_data,
+    cancel_column_data, handle_skip, load_history_data, refresh_data, send_column_data,
+    set_is_paused, set_speed, toggle_column_data,
+};
+use crate::commands::history::{
+    delete_calculation_history, export_calculation_history, get_calculation_history,
+    list_calculation_histories,
 };
 use crate::commands::modbus::{connect_modbus, disconnect_modbus};
 use crate::commands::settings::{available_ports, get_settings, save_settings};
-use crate::data_manager::types::ColumnEntry;
 use crate::modbus::client::ModbusClient;
 use crate::modbus::service::ModbusService;
+use crate::storage::service::CalculationHistoryService;
 use data_manager::factory::ProviderFactory;
 use data_manager::provider::DataProvider;
-use log::info;
-use rodbus::client::Channel;
+use log::{error, info};
 use settings::types::Settings;
 use settings::SettingsService;
 use specta_typescript::Typescript;
@@ -34,13 +38,9 @@ use tokio::sync::Mutex;
 #[derive(Clone)]
 pub struct AppState {
     transmission_state: Arc<Mutex<TransmissionState>>,
-    history: Arc<Mutex<History>>,
     settings_path: String,
-}
-
-#[derive(Default, Clone, Debug)]
-pub struct History {
-    pub history: Vec<Arc<ColumnEntry>>,
+    calculation_history_service: Arc<CalculationHistoryService>,
+    calculation_service: Arc<CalculationService>,
 }
 
 pub struct TransmissionState {
@@ -115,6 +115,7 @@ pub fn run() {
         disconnect_modbus,
         export_data,
         import_data,
+        import_to_history,
         file_path,
         folder_path,
         send_column_data,
@@ -124,7 +125,12 @@ pub fn run() {
         available_ports,
         toggle_column_data,
         set_is_paused,
-        refresh_data
+        refresh_data,
+        list_calculation_histories,
+        get_calculation_history,
+        export_calculation_history,
+        delete_calculation_history,
+        load_history_data
     ]);
 
     #[cfg(debug_assertions)]
@@ -168,11 +174,34 @@ pub fn run() {
 
             let provider_factory = ProviderFactory::new();
             let provider = provider_factory.create_playback_provider(vec![], 0);
-            // Initialize the app state
+
+            // Inicializar el servicio de historial de cálculos
+            let calculation_history_dir = app_handle
+                .path()
+                .app_data_dir()
+                .unwrap_or_else(|_| std::path::PathBuf::from("./data"))
+                .join("calculation_history");
+
+            let calculation_history_service =
+                match CalculationHistoryService::new(calculation_history_dir) {
+                    Ok(service) => service,
+                    Err(err) => {
+                        error!(
+                            "No se pudo inicializar el servicio de historial de cálculos: {}",
+                            err
+                        );
+                        panic!("Failed to initialize calculation history service");
+                    }
+                };
+
+            // Inicializar servicio de cálculos
+            let calculation_service = CalculationService::new();
+
             let app_state = AppState {
                 transmission_state: Arc::new(Mutex::new(TransmissionState::new(provider))),
-                history: Arc::new(Mutex::new(History::default())),
                 settings_path,
+                calculation_history_service: Arc::new(calculation_history_service),
+                calculation_service: Arc::new(calculation_service),
             };
 
             app.manage(app_state.clone());

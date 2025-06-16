@@ -5,6 +5,7 @@ use crate::data_manager::types::ColumnEntry;
 use crate::errors::{DataError, Result};
 use crate::modbus::client::ModbusClient;
 use crate::modbus::service::ModbusService;
+use crate::storage::service::CalculationHistoryService;
 use async_trait::async_trait;
 use log::debug;
 use rodbus::client::Channel;
@@ -18,7 +19,7 @@ pub struct LiveDataProvider {
     modbus_channel: Arc<Mutex<Option<Channel>>>,
     calculation_service: Arc<CalculationService>,
     modbus_service: Arc<ModbusService<ModbusClient>>,
-    history: Vec<Arc<ColumnEntry>>,
+    history_service: Arc<CalculationHistoryService>,
 }
 
 impl LiveDataProvider {
@@ -26,12 +27,13 @@ impl LiveDataProvider {
         modbus_channel: Arc<Mutex<Option<Channel>>>,
         calculation_service: Arc<CalculationService>,
         modbus_service: Arc<ModbusService<ModbusClient>>,
+        history_service: Arc<CalculationHistoryService>,
     ) -> Self {
         Self {
             modbus_service,
             calculation_service,
             modbus_channel,
-            history: Vec::new(),
+            history_service,
         }
     }
 }
@@ -85,10 +87,18 @@ impl DataProvider for LiveDataProvider {
             compositions.push(composition);
         }
 
-        let distilled_mass = self.calculation_service.calculate_distilled_mass(
-            Some(initial_concentration as f64),
-            Some(initial_mass as f64),
-            self.history.clone(),
+        let history = match self.history_service.get_current_session_data().await {
+            Ok(entries) => entries,
+            Err(err) => {
+                debug!("Error getting history data: {}, using empty history", err);
+                Vec::new()
+            }
+        };
+
+        let steps = self.calculation_service.calculate_distilled_mass(
+            initial_concentration as f64,
+            initial_mass as f64,
+            &history,
         );
 
         let entry = Arc::new(ColumnEntry {
@@ -99,10 +109,8 @@ impl DataProvider for LiveDataProvider {
             temperatures: inter_temps,
             compositions,
             percentage_complete: 0.0,
-            distilled_mass,
+            distilled_mass: steps.last().unwrap().distilled_mass.unwrap_or(0.0) as f64,
         });
-
-        self.history.push(entry.clone());
 
         Ok(entry)
     }
@@ -112,7 +120,6 @@ impl DataProvider for LiveDataProvider {
     }
 
     fn reset(&mut self) -> Result<()> {
-        self.history.clear();
         Ok(())
     }
 
@@ -137,7 +144,7 @@ impl DataProvider for LiveDataProvider {
     fn clone_provider(&self) -> Box<dyn DataProvider + Send> {
         Box::new(Self {
             calculation_service: self.calculation_service.clone(),
-            history: self.history.clone(),
+            history_service: self.history_service.clone(),
             modbus_channel: self.modbus_channel.clone(),
             modbus_service: self.modbus_service.clone(),
         })

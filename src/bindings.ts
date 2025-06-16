@@ -37,9 +37,9 @@ async disconnectModbus() : Promise<Result<null, Error>> {
     else return { status: "error", error: e  as any };
 }
 },
-async exportData(path: string, initialMass: number, initialComposition: number) : Promise<Result<null, string>> {
+async exportData(path: string, initialMass: number, initialConcentration: number) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("export_data", { path, initialMass, initialComposition }) };
+    return { status: "ok", data: await TAURI_INVOKE("export_data", { path, initialMass, initialConcentration }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -48,6 +48,14 @@ async exportData(path: string, initialMass: number, initialComposition: number) 
 async importData(path: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("import_data", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async importToHistory(path: string) : Promise<Result<ImportResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("import_to_history", { path }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -122,6 +130,46 @@ async refreshData(dataAmount: number) : Promise<Result<ColumnEntry[], string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async listCalculationHistories() : Promise<Result<HistorySummary[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_calculation_histories") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getCalculationHistory(historyId: string) : Promise<Result<CalculationHistory, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_calculation_history", { historyId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async exportCalculationHistory(historyId: string | null, exportPath: string) : Promise<Result<ExportResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("export_calculation_history", { historyId, exportPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async deleteCalculationHistory(historyId: string) : Promise<Result<boolean, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_calculation_history", { historyId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async loadHistoryData(historyId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("load_history_data", { historyId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -135,13 +183,18 @@ async refreshData(dataAmount: number) : Promise<Result<ColumnEntry[], string>> {
 
 /** user-defined types **/
 
+export type CalculationHistory = { id: string; initial_mass: number; initial_concentration: number; number_plates: number; steps: CalculationStep[]; start_time: number; end_time: number; file_size: number | null; description: string | null }
+export type CalculationStep = { timestamp: number; step_index: number; temperatures: number[]; compositions: CompositionResult[]; delta_x: number | null; f_0: number | null; f_1: number | null; partial_integral: number | null; accumulated_integral: number | null; remaining_mass: number | null; distilled_mass: number | null }
 export type ColumnEntry = { timestamp: number; temperatures: number[]; compositions: CompositionResult[]; percentageComplete: number; distilledMass: number }
 export type CompositionResult = { x_1: number | null; y_1: number | null }
 export type DataError = { type: "EmptyDataError" } | { type: "NoMoreDataError" } | { type: "NoDataError" } | { type: "CustomError"; data: string }
 export type Error = { type: "SettingsError"; data: SettingsError } | { type: "FileError"; data: FileError } | { type: "ModbusError"; data: ModbusError } | { type: "RootError"; data: RootError } | { type: "DataError"; data: DataError } | { type: "ImportError"; data: ImportError } | { type: "ExportError"; data: ExportError }
 export type ExportError = { type: "InvalidFormat"; data: string } | { type: "NoDataError" } | { type: "ExportDataError"; data: string }
+export type ExportResult = { success: boolean; file_path: string | null; error: string | null }
 export type FileError = { type: "ReadError"; data: string } | { type: "WriteError"; data: string } | { type: "EnsureFileError"; data: string } | { type: "InvalidFileType" } | { type: "ParseJsonError"; data: string } | { type: "CreateDirError"; data: string } | { type: "SerializeError"; data: string } | { type: "InvalidPathError"; data: string }
+export type HistorySummary = { id: string; initial_mass: number; initial_concentration: number; number_plates: number; start_time: number; end_time: number; steps_count: number; file_size: number | null }
 export type ImportError = { type: "InvalidFormat"; data: string }
+export type ImportResult = { success: boolean; number_plates: number; initial_mass: number | null; initial_composition: number | null; history_id: string | null; message: string }
 export type ModbusError = { type: "ConnectionError"; data: string } | { type: "ReadCoilsError"; data: string } | { type: "WriteCoilsError"; data: string } | { type: "ReadHoldingRegistersError"; data: string } | { type: "WriteHoldingRegistersError"; data: string } | { type: "WriteSingleCoilError"; data: string } | { type: "WriteSingleRegisterError"; data: string }
 export type ModbusSettings = { usbPort: string; baudrate: number; initialAddress: number; count: number; timeout: number; unitId: number }
 export type RootError = { type: "NotFoundedRoot" } | { type: "DivisionByZero" } | { type: "NegativeRootError" }

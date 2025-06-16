@@ -1,15 +1,16 @@
+use crate::calculations::types::{CalculationHistory, CalculationStep, HistorySummary};
 use crate::data_manager::types::ColumnEntry;
-use crate::storage::types::{CalculationHistory, CalculationStep};
-use log::{debug, error, info, warn};
+use log::{debug, error, info};
+use serde_json;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::SystemTime;
 use tokio::sync::Mutex;
 
+#[derive(Debug)]
 pub struct CalculationHistoryService {
-    base_dir: PathBuf,
+    pub base_dir: PathBuf,
     current_history: Arc<Mutex<Option<CalculationHistory>>>,
     file_writer: Arc<Mutex<Option<BufWriter<File>>>>,
 }
@@ -26,12 +27,59 @@ impl CalculationHistoryService {
         })
     }
 
+    pub async fn get_current_session_data(&self) -> io::Result<Vec<Arc<ColumnEntry>>> {
+        let history_guard = self.current_history.lock().await;
+        let history = match &*history_guard {
+            Some(h) => h,
+            None => return Ok(Vec::new()),
+        };
+
+        let entries = history
+            .steps
+            .iter()
+            .map(|step| {
+                Arc::new(ColumnEntry {
+                    timestamp: step.timestamp,
+                    temperatures: step.temperatures.clone(),
+                    compositions: step.compositions.clone(),
+                    percentage_complete: 0.0,
+                    distilled_mass: step.distilled_mass.unwrap_or(0.0) as f64,
+                })
+            })
+            .collect();
+        Ok(entries)
+    }
+
+    pub async fn _export_to_excel(
+        &self,
+        history_id: Option<String>,
+        _path: &str,
+    ) -> io::Result<()> {
+        let _history = if let Some(id) = history_id {
+            self.load_history(&self.base_dir.join(id))?
+        } else {
+            let history_guard = self.current_history.lock().await;
+            match &*history_guard {
+                Some(h) => h.clone(),
+                None => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::NotFound,
+                        "No current history found",
+                    ))
+                }
+            }
+        };
+
+        Ok(())
+    }
+
     pub async fn start_new_history(
         &self,
-        initial_mass: f32,
-        initial_concentration: f32,
+        number_plates: usize,
+        initial_mass: f64,
+        initial_concentration: f64,
     ) -> io::Result<()> {
-        let history = CalculationHistory::new(initial_mass, initial_concentration);
+        let history = CalculationHistory::new(number_plates, initial_mass, initial_concentration);
 
         let filename = format!("distillation_history_{}.json", history.start_time);
         let file_path = self.base_dir.join(filename);
@@ -42,7 +90,20 @@ impl CalculationHistoryService {
             .truncate(true)
             .open(&file_path)?;
 
-        let writer = BufWriter::new(file);
+        let mut writer = BufWriter::new(file);
+
+        let header = serde_json::json!({
+            "id": history.id,
+            "initial_mass": history.initial_mass,
+            "initial_concentration": history.initial_concentration,
+            "number_plates": history.number_plates,
+            "start_time": history.start_time,
+            "end_time": history.end_time,
+            "file_size": history.file_size,
+        });
+
+        writeln!(writer, "# HEADER: {}", serde_json::to_string(&header)?)?;
+        writer.flush()?;
 
         {
             let mut file_writer = self.file_writer.lock().await;
@@ -58,12 +119,7 @@ impl CalculationHistoryService {
         Ok(())
     }
 
-    pub async fn record_calculation_step(
-        &self,
-        prev_entry: &Arc<ColumnEntry>,
-        current_entry: &Arc<ColumnEntry>,
-        initial_mass: f32,
-    ) -> io::Result<()> {
+    pub async fn record_step(&self, step: CalculationStep) -> io::Result<()> {
         let mut history_guard = self.current_history.lock().await;
         let history = match history_guard.as_mut() {
             Some(h) => h,
@@ -76,76 +132,12 @@ impl CalculationHistoryService {
             }
         };
 
-        let step_index = history.steps.len();
-        let x_re = prev_entry
-            .compositions
-            .first()
-            .and_then(|c| c.x_1)
-            .unwrap_or(0.0) as f32;
-        let x_do = prev_entry
-            .compositions
-            .last()
-            .and_then(|c| c.y_1)
-            .unwrap_or(0.0) as f32;
-        let next_x_re = current_entry
-            .compositions
-            .first()
-            .and_then(|c| c.x_1)
-            .unwrap_or(0.0) as f32;
-        let next_x_do = current_entry
-            .compositions
-            .last()
-            .and_then(|c| c.y_1)
-            .unwrap_or(0.0) as f32;
-
-        let delta_x = next_x_re - x_re;
-        let f_0 = Self::calculate_function(x_re, x_do);
-        let f_1 = Self::calculate_function(next_x_re, next_x_do);
-
-        let partial_integral = 0.5 * (f_0 + f_1) * delta_x;
-
-        let accumulated_integral = if let Some(last_step) = history.steps.last() {
-            last_step.accumulated_integral + partial_integral
-        } else {
-            partial_integral
-        };
-
-        let remaining_mass = accumulated_integral.exp() * initial_mass;
-        let distilled_mass = initial_mass - remaining_mass;
-
-        let step = CalculationStep {
-            timestamp: SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs() as u32,
-            step_index,
-            x_re,
-            x_do,
-            temp_re: current_entry.temperatures.first().copied().unwrap_or(0.0) as f32,
-            temp_do: current_entry.temperatures.last().copied().unwrap_or(0.0) as f32,
-            delta_x,
-            f_0,
-            f_1,
-            partial_integral,
-            accumulated_integral,
-            remaining_mass,
-            distilled_mass,
-        };
-
         history.steps.push(step.clone());
         history.end_time = step.timestamp;
 
         self.write_step_to_file(&step).await?;
 
         Ok(())
-    }
-
-    fn calculate_function(x_re: f32, x_do: f32) -> f32 {
-        if (x_re - x_do).abs() < 1e-6 {
-            return 0.0;
-        }
-
-        1.0 / (x_re + x_do)
     }
 
     async fn write_step_to_file(&self, step: &CalculationStep) -> io::Result<()> {
@@ -195,9 +187,85 @@ impl CalculationHistoryService {
         Ok(file_path)
     }
 
-    pub fn load_history(file_path: &Path) -> io::Result<CalculationHistory> {
-        let content = fs::read_to_string(file_path)?;
-        let history: CalculationHistory = serde_json::from_str(&content)?;
+    pub fn load_history(&self, file_path: &Path) -> io::Result<CalculationHistory> {
+        let file = File::open(file_path)?;
+        let reader = io::BufReader::new(file);
+        let mut lines = io::BufRead::lines(reader);
+
+        let header_line = match lines.next() {
+            Some(Ok(line)) => line,
+            _ => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "Empty history file",
+                ))
+            }
+        };
+
+        let header_json = if header_line.starts_with("# HEADER: ") {
+            &header_line[9..]
+        } else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Invalid history file format",
+            ));
+        };
+        let header: serde_json::Value = serde_json::from_str(header_json)?;
+
+        let id = header["id"]
+            .as_str()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Missing id in header"))?
+            .to_string();
+        let initial_mass = header["initial_mass"].as_f64().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData, "Missing initial_mass in header")
+        })?;
+        let initial_concentration = header["initial_concentration"].as_f64().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Missing initial_concentration in header",
+            )
+        })?;
+        let number_plates = header["number_plates"].as_u64().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Missing number_plates in header",
+            )
+        })? as u32;
+        let start_time = header["start_time"].as_u64().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData, "Missing start_time in header")
+        })? as u32;
+        let mut end_time = start_time;
+
+        let mut steps = Vec::new();
+        for (i, line_result) in lines.enumerate() {
+            let line = line_result?;
+            let step: CalculationStep = match serde_json::from_str(&line) {
+                Ok(step) => step,
+                Err(e) => {
+                    error!("Failed to parse step {}: {}", i + 1, e);
+                    continue;
+                }
+            };
+
+            if step.timestamp > end_time {
+                end_time = step.timestamp;
+            }
+
+            steps.push(step);
+        }
+
+        let history = CalculationHistory {
+            id,
+            initial_mass,
+            initial_concentration,
+            number_plates,
+            steps,
+            start_time,
+            end_time,
+            file_size: Some(std::fs::metadata(file_path)?.len() as u32),
+            description: None,
+        };
+
         Ok(history)
     }
 
@@ -226,5 +294,74 @@ impl CalculationHistoryService {
         });
 
         Ok(history_files)
+    }
+
+    pub fn load_history_summary(&self, file_path: &Path) -> io::Result<HistorySummary> {
+        let file = File::open(file_path)?;
+        let reader = io::BufReader::new(&file);
+        let mut lines = io::BufRead::lines(reader);
+
+        let id = file_path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("unknown")
+            .to_string();
+
+        let first_line = match lines.next() {
+            Some(Ok(line)) => line,
+            _ => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "Empty history file",
+                ));
+            }
+        };
+
+        let mut steps_count = 0;
+
+        for _ in lines {
+            steps_count += 1;
+        }
+
+        if first_line.starts_with("# HEADER: ") {
+            let header_json = &first_line[9..];
+            let header: serde_json::Value = serde_json::from_str(header_json)?;
+
+            return Ok(HistorySummary {
+                id,
+                initial_mass: header["initial_mass"].as_f64().unwrap_or(0.0),
+                initial_concentration: header["initial_concentration"].as_f64().unwrap_or(0.0),
+                start_time: header["start_time"].as_u64().unwrap_or(0) as u32,
+                end_time: header["end_time"].as_u64().unwrap_or(0) as u32,
+                steps_count,
+                number_plates: header["number_plates"].as_u64().unwrap_or(0) as u32,
+                file_size: Some(file.metadata()?.len() as u32),
+            });
+        } else {
+            error!("Invalid history file format: {}", file_path.display());
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Invalid history file format",
+            ));
+        }
+    }
+    pub fn convert_history_to_entries(
+        &self,
+        history: &CalculationHistory,
+    ) -> Vec<Arc<ColumnEntry>> {
+        history
+            .steps
+            .iter()
+            .map(|step| {
+                Arc::new(ColumnEntry {
+                    timestamp: step.timestamp,
+                    temperatures: step.temperatures.clone(),
+                    compositions: step.compositions.clone(),
+                    percentage_complete: step.step_index as f64 / history.steps.len() as f64
+                        * 100.0,
+                    distilled_mass: step.distilled_mass.unwrap_or(0.0) as f64,
+                })
+            })
+            .collect()
     }
 }

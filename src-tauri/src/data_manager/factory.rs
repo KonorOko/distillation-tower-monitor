@@ -6,6 +6,7 @@ use tokio::sync::Mutex;
 use crate::{
     calculations::service::CalculationService,
     modbus::{client::ModbusClient, service::ModbusService},
+    storage::service::CalculationHistoryService,
 };
 
 use super::{
@@ -24,6 +25,7 @@ impl ProviderFactory {
         &self,
         calculation_service: Arc<CalculationService>,
         modbus_channel: Arc<Mutex<Option<Channel>>>,
+        history_service: Arc<CalculationHistoryService>,
     ) -> Box<dyn DataProvider + Send> {
         let modbus_client = ModbusClient::new();
         let modbus_service = Arc::new(ModbusService::new(modbus_client));
@@ -31,6 +33,7 @@ impl ProviderFactory {
             modbus_channel,
             calculation_service,
             modbus_service,
+            history_service,
         ))
     }
 

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
-
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug)]
 pub struct EquationParams {
@@ -45,7 +45,7 @@ pub struct CompositionResult {
 pub struct CompositionConfig {
     pub x_0: Option<f64>,
     pub tol: Option<f64>,
-    pub max_iter: Option<u64>,
+    pub max_iter: Option<u32>,
 }
 
 impl Default for CompositionConfig {
@@ -62,19 +62,65 @@ impl CompositionConfig {
     pub fn new() -> Self {
         Self::default()
     }
-    
-    pub fn with_x_0(mut self, x_0: f64) -> Self {
-        self.x_0 = Some(x_0);
-        self
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct CalculationStep {
+    pub timestamp: u32,
+    pub step_index: u32,
+    pub temperatures: Vec<f64>,
+    pub compositions: Vec<CompositionResult>,
+    pub delta_x: Option<f32>,
+    pub f_0: Option<f32>,
+    pub f_1: Option<f32>,
+    pub partial_integral: Option<f32>,
+    pub accumulated_integral: Option<f32>,
+    pub remaining_mass: Option<f32>,
+    pub distilled_mass: Option<f32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct CalculationHistory {
+    pub id: String,
+    pub initial_mass: f64,
+    pub initial_concentration: f64,
+    pub number_plates: u32,
+    pub steps: Vec<CalculationStep>,
+    pub start_time: u32,
+    pub end_time: u32,
+    pub file_size: Option<u32>,
+    pub description: Option<String>,
+}
+
+impl CalculationHistory {
+    pub fn new(number_plates: usize, initial_mass: f64, initial_concentration: f64) -> Self {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as u32;
+
+        Self {
+            id: format!("distillation_history_{}", timestamp),
+            initial_mass,
+            initial_concentration,
+            number_plates: number_plates as u32,
+            steps: Vec::new(),
+            start_time: timestamp,
+            end_time: timestamp,
+            file_size: Some(0),
+            description: None,
+        }
     }
-    
-    pub fn with_tol(mut self, tol: f64) -> Self {
-        self.tol = Some(tol);
-        self
-    }
-    
-    pub fn with_max_iter(mut self, max_iter: u64) -> Self {
-        self.max_iter = Some(max_iter);
-        self
-    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct HistorySummary {
+    pub id: String,
+    pub initial_mass: f64,
+    pub initial_concentration: f64,
+    pub number_plates: u32,
+    pub start_time: u32,
+    pub end_time: u32,
+    pub steps_count: u32,
+    pub file_size: Option<u32>,
 }

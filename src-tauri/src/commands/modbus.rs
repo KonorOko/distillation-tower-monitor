@@ -59,6 +59,7 @@ pub async fn connect_modbus(app_state: State<'_, AppState>) -> Result<()> {
     let provider = provider_factory.create_live_provider(
         Arc::new(calculation_service),
         Arc::new(Mutex::new(Some(channel.clone()))),
+        app_state.calculation_history_service.clone(),
     );
 
     let mut transmission_guard = app_state.transmission_state.lock().await;

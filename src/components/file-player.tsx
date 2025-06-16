@@ -1,4 +1,3 @@
-import { ImportDialog } from "@/components/import-dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { StatusLed } from "@/components/ui/status-led";
@@ -32,13 +31,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FilesTree } from "./files-tree";
 
 export function FilePlayer({ className = "" }: { className?: string }) {
-  const [playbackSpeed, setPlaybackSpeed] = useState(2);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const connected = useData((state) => state.connected);
   const fileProgress = useData((state) => state.fileProgress);
   const setConnected = useData((state) => state.setConnected);
-  const setFileProgress = useData((state) => state.setFileProgress);
   const refreshColumnData = useData((state) => state.refreshColumnData);
 
   // Handle speed change
@@ -182,9 +181,9 @@ export function FilePlayer({ className = "" }: { className?: string }) {
             </DefaultTooltip>
           </div>
 
-          <ImportDialog>
+          <FilesTree>
             <Button className="relative mx-1 h-7">
-              <span className="text-xs">Excel File</span>
+              <span className="text-xs">History</span>
               {(connected === "file" || connected === "paused") && (
                 <StatusLed
                   connected={connected === "file"}
@@ -192,7 +191,7 @@ export function FilePlayer({ className = "" }: { className?: string }) {
                 />
               )}
             </Button>
-          </ImportDialog>
+          </FilesTree>
         </div>
 
         <div className="flex w-full items-center gap-2">

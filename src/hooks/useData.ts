@@ -10,6 +10,8 @@ interface DataState {
   connected: DataMode;
   isLoading: boolean;
   filePath: string;
+  isImporting: boolean;
+  setIsImporting: (isImporting: boolean) => void;
   fileProgress: number;
   setColumnData: (columnData: ColumnEntry) => void;
   setConnected: (connected: DataMode) => void;
@@ -24,6 +26,7 @@ export const useData = create<DataState>((set) => ({
   columnData: [],
   connected: "none",
   isLoading: false,
+  isImporting: false,
   filePath: "",
   fileProgress: 0,
   setColumnData: (columnData: ColumnEntry) => {
@@ -56,6 +59,8 @@ export const useData = create<DataState>((set) => ({
       fileProgress: 0,
     }));
   },
+  setIsImporting: (isImporting: boolean) =>
+    set((state) => ({ ...state, isImporting })),
   refreshColumnData: async (newColumnData: ColumnEntry[]) =>
     set((state) => ({
       ...state,
