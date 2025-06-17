@@ -127,6 +127,7 @@ export function FilesTree({ children }: { children: React.ReactNode }) {
     };
     if (open && !isImporting) getFiles();
   }, [open, isImporting]);
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
@@ -153,10 +154,10 @@ export function FilesTree({ children }: { children: React.ReactNode }) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Archivo</TableHead>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Duración</TableHead>
-                    <TableHead>Tamaño</TableHead>
+                    <TableHead>File</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>Size</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -164,7 +165,7 @@ export function FilesTree({ children }: { children: React.ReactNode }) {
                   {files.map((file) => (
                     <TableRow
                       key={file.id}
-                      className={`cursor-pointer hover:bg-muted/50 ${file.id ? "bg-muted" : ""}`}
+                      className={`cursor-pointer hover:bg-muted/50 ${selectedFile?.id === file.id ? "bg-muted" : ""}`}
                       onClick={() => handleFileSelect(file)}
                     >
                       <TableCell>
@@ -176,13 +177,19 @@ export function FilesTree({ children }: { children: React.ReactNode }) {
                       <TableCell>
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
                           <Calendar className="h-3 w-3" />
-                          {new Date(file.start_time).toLocaleDateString()}
+                          {new Date(
+                            file.start_time * 1000,
+                          ).toLocaleDateString()}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1 text-sm">
                           <Clock className="h-3 w-3" />
-                          {file.start_time - file.end_time}
+                          {Math.floor(
+                            (file.end_time - file.start_time) / 3600,
+                          ) < 1
+                            ? "<1h"
+                            : `${Math.floor((file.end_time - file.start_time) / 3600)}h`}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -208,15 +215,9 @@ export function FilesTree({ children }: { children: React.ReactNode }) {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent>
-                            <DropdownMenuItem>
-                              Exportar como JSON
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              Exportar como CSV
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              Exportar como Excel
-                            </DropdownMenuItem>
+                            <DropdownMenuItem>Export to JSON</DropdownMenuItem>
+                            <DropdownMenuItem>Export to CSV</DropdownMenuItem>
+                            <DropdownMenuItem>Export to Excel</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -265,13 +266,13 @@ export function FilesTree({ children }: { children: React.ReactNode }) {
                   value="preview"
                   className="h-full flex-1 overflow-hidden"
                 >
-                  <PreviewFileTree selectedFile={selectedFile} />
+                  <PreviewFileTree steps={steps} selectedFile={selectedFile} />
                 </TabsContent>
 
                 <TabsContent value="data" className="h-full">
                   <Card className="h-full w-full shadow-none">
                     <CardHeader className="hidden">
-                      <CardTitle className="text-lg">Tabla de Datos</CardTitle>
+                      <CardTitle className="text-lg">Data table</CardTitle>
                     </CardHeader>
                     <CardContent className="h-full max-w-[593px] p-0 px-2">
                       <DataTable
@@ -287,11 +288,10 @@ export function FilesTree({ children }: { children: React.ReactNode }) {
                 <CardContent className="text-center">
                   <FileText className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
                   <h3 className="mb-2 text-lg font-semibold">
-                    Selecciona un archivo
+                    Select a file to view
                   </h3>
                   <p className="text-muted-foreground">
-                    Haz clic en cualquier archivo de la lista para ver su
-                    contenido
+                    Click on a file from the list to see its details and data.
                   </p>
                 </CardContent>
               </Card>
@@ -339,31 +339,41 @@ const getColumns = (initialTimestamp: number): ColumnDef<CalculationStep>[] => [
   {
     id: "composition_reboiler",
     header: "Composition Reboiler",
-    accessorFn: (row) => row.compositions[0].x_1 || "-",
+    accessorFn: (row) => row.compositions[0].x_1?.toFixed(2) || "-",
   },
   {
     id: "composition_condensor",
     header: "Composition Condensor",
-    accessorFn: (row) => row.compositions.at(-1)?.x_1 || "-",
+    accessorFn: (row) => row.compositions.at(-1)?.x_1?.toFixed(2) || "-",
   },
   {
-    accessorKey: "delta_x",
+    id: "delta_x",
     header: "Delta X",
+    accessorFn: (row) => row.delta_x?.toFixed(4) || "-",
   },
   {
-    accessorKey: "f_0",
+    id: "f_0",
     header: "F0",
+    accessorFn: (row) => row.f_0?.toFixed(2) || "-",
   },
   {
-    accessorKey: "f_1",
+    id: "f_1",
     header: "F1",
+    accessorFn: (row) => row.f_1?.toFixed(2) || "-",
   },
   {
-    accessorKey: "partial_integral",
+    id: "partial_integral",
     header: "Partial Integral",
+    accessorFn: (row) => row.partial_integral?.toFixed(4) || "-",
   },
   {
-    accessorKey: "remaining_mass",
+    id: "remaining_mass",
     header: "Remaining Mass",
+    accessorFn: (row) => row.remaining_mass?.toFixed(2) || "-",
+  },
+  {
+    id: "distilled_mass",
+    header: "Distilled Mass",
+    accessorFn: (row) => row.distilled_mass?.toFixed(2) || "0.00",
   },
 ];

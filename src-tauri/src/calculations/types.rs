@@ -93,11 +93,18 @@ pub struct CalculationHistory {
 }
 
 impl CalculationHistory {
-    pub fn new(number_plates: usize, initial_mass: f64, initial_concentration: f64) -> Self {
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs() as u32;
+    pub fn new(
+        start_time: Option<u32>,
+        number_plates: usize,
+        initial_mass: f64,
+        initial_concentration: f64,
+    ) -> Self {
+        let timestamp = start_time.unwrap_or(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as u32,
+        );
 
         Self {
             id: format!("distillation_history_{}", timestamp),

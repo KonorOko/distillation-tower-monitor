@@ -75,11 +75,17 @@ impl CalculationHistoryService {
 
     pub async fn start_new_history(
         &self,
+        start_time: u32,
         number_plates: usize,
         initial_mass: f64,
         initial_concentration: f64,
     ) -> io::Result<()> {
-        let history = CalculationHistory::new(number_plates, initial_mass, initial_concentration);
+        let history = CalculationHistory::new(
+            Some(start_time),
+            number_plates,
+            initial_mass,
+            initial_concentration,
+        );
 
         let filename = format!("distillation_history_{}.json", history.start_time);
         let file_path = self.base_dir.join(filename);
@@ -161,7 +167,7 @@ impl CalculationHistoryService {
     }
 
     pub async fn finish_current_history(&self) -> io::Result<Option<PathBuf>> {
-        let file_path = {
+        let history_data = {
             let mut writer_guard = self.file_writer.lock().await;
             if let Some(mut writer) = writer_guard.take() {
                 writer.flush()?;
@@ -172,19 +178,71 @@ impl CalculationHistoryService {
             match &*history_guard {
                 Some(history) => {
                     let filename = format!("distillation_history_{}.json", history.start_time);
-                    Some(self.base_dir.join(filename))
+                    Some((self.base_dir.join(filename), history.clone()))
                 }
                 None => None,
             }
         };
+
+        if let Some((file_path, history)) = history_data {
+            let temp_path = file_path.with_extension("tmp");
+            let updated_header = serde_json::json!({
+               "id": history.id,
+               "initial_mass": history.initial_mass,
+               "initial_concentration": history.initial_concentration,
+               "number_plates": history.number_plates,
+               "start_time": history.start_time,
+               "end_time": history.end_time,
+               "file_size": history.file_size
+            });
+
+            let file = File::open(&file_path)?;
+            let reader = io::BufReader::new(file);
+            let mut lines = io::BufRead::lines(reader);
+
+            if lines.next().is_none() {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "Empty history file",
+                ));
+            }
+
+            let temp_file = File::create(&temp_path)?;
+            let mut temp_writer = BufWriter::new(temp_file);
+
+            writeln!(
+                temp_writer,
+                "# HEADER: {}",
+                serde_json::to_string(&updated_header)?
+            )?;
+
+            for line_r in lines {
+                let line = line_r?;
+                writeln!(temp_writer, "{}", line)?;
+            }
+
+            temp_writer.flush()?;
+            fs::rename(temp_path, &file_path)?;
+            info!(
+                "Finished current calculation history at {}",
+                file_path.display()
+            );
+
+            {
+                let mut history_guard = self.current_history.lock().await;
+                *history_guard = None;
+            }
+
+            return Ok(Some(file_path));
+        }
 
         {
             let mut history_guard = self.current_history.lock().await;
             *history_guard = None;
         }
 
-        info!("Finished current calculation history.");
-        Ok(file_path)
+        info!("No current history to finish.");
+        Ok(None)
     }
 
     pub fn load_history(&self, file_path: &Path) -> io::Result<CalculationHistory> {

@@ -66,7 +66,12 @@ impl ExcelDataImporter {
         let history_service = self.history_service.as_ref().unwrap();
 
         history_service
-            .start_new_history(number_plates, initial_mass, initial_concentration)
+            .start_new_history(
+                entries.first().unwrap().timestamp,
+                number_plates,
+                initial_mass,
+                initial_concentration,
+            )
             .await
             .map_err(|e| ImportError::InvalidFormat(format!("Failed to start history: {}", e)))?;
 

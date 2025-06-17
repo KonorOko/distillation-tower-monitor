@@ -51,7 +51,7 @@ impl CalculationService {
         m_0: f64,
         column_entries: &[Arc<ColumnEntry>],
     ) -> Vec<CalculationStep> {
-        if column_entries.len() < 2 {
+        if column_entries.is_empty() {
             return Vec::new();
         }
 
@@ -59,75 +59,75 @@ impl CalculationService {
         let nh2o = (1.0 - w_0) / 18.02;
         let x_0 = net / (net + nh2o);
 
-        let mut steps = Vec::new();
+        let mut steps = Vec::with_capacity(column_entries.len());
         let mut inte = 0.0;
 
         let calculate_f = |x_b: f64, x_d: f64| -> f64 {
             if (x_d - x_b).abs() < 1e-6 {
                 return 0.0;
             }
-
             1.0 / (x_d - x_b)
         };
 
-        for i in 0..column_entries.len() - 1 {
-            if column_entries[i].compositions.is_empty()
-                || column_entries[i + 1].compositions.is_empty()
-            {
-                continue;
-            }
+        for i in 0..column_entries.len() {
+            let current = &column_entries[i];
 
-            let x_b0 = match column_entries[i].compositions.first() {
-                Some(comp) => comp.x_1,
-                None => continue,
-            };
+            let mut delta_x = None;
+            let mut f_0 = None;
+            let mut f_1 = None;
+            let mut partial_integral = None;
 
-            let x_d0 = match column_entries[i].compositions.last() {
-                Some(comp) => comp.y_1,
-                None => continue,
-            };
+            let can_calculate = i < column_entries.len() - 1
+                && !current.compositions.is_empty()
+                && !column_entries[i + 1].compositions.is_empty();
 
-            let x_df = match column_entries[i + 1].compositions.last() {
-                Some(comp) => comp.y_1,
-                None => continue,
-            };
+            if can_calculate {
+                let x_b0 = current.compositions.first().and_then(|c| c.x_1);
+                let x_d0 = current.compositions.last().and_then(|c| c.y_1);
+                let x_bf = column_entries[i + 1]
+                    .compositions
+                    .first()
+                    .and_then(|c| c.x_1);
+                let x_df = column_entries[i + 1]
+                    .compositions
+                    .last()
+                    .and_then(|c| c.y_1);
 
-            let x_bf = match column_entries[i + 1].compositions.first() {
-                Some(comp) => comp.x_1,
-                None => continue,
-            };
+                if let (Some(x_b0), Some(x_d0), Some(x_bf), Some(x_df)) = (x_b0, x_d0, x_bf, x_df) {
+                    if x_b0 <= x_0 {
+                        let dx = x_b0 - x_bf;
+                        let f1 = calculate_f(x_b0, x_d0);
+                        let f0 = calculate_f(x_bf, x_df);
+                        let partial = 0.5 * (f0 + f1) * dx;
 
-            if let (Some(x_d0), Some(x_df), Some(x_b0), Some(x_bf)) = (x_d0, x_df, x_b0, x_bf) {
-                if x_b0 > x_0 {
-                    continue;
+                        delta_x = Some(dx as f32);
+                        f_0 = Some(f0 as f32);
+                        f_1 = Some(f1 as f32);
+                        partial_integral = Some(partial as f32);
+
+                        inte += partial;
+                    }
                 }
-
-                let dx = x_b0 - x_bf;
-                let f_1 = calculate_f(x_b0, x_d0);
-                let f_0 = calculate_f(x_bf, x_df);
-                let partial_inte = 0.5 * (f_0 + f_1) * dx;
-
-                inte += partial_inte;
-
-                let remaining_mass = (-inte).exp() * m_0;
-                let distilled_mass = m_0 - remaining_mass;
-
-                let step = CalculationStep {
-                    timestamp: column_entries[i].timestamp as u32,
-                    step_index: i as u32,
-                    temperatures: column_entries[i].temperatures.clone(),
-                    compositions: column_entries[i].compositions.clone(),
-                    delta_x: Some(dx as f32),
-                    f_0: Some(f_0 as f32),
-                    f_1: Some(f_1 as f32),
-                    partial_integral: Some(partial_inte as f32),
-                    accumulated_integral: Some(inte as f32),
-                    remaining_mass: Some(remaining_mass as f32),
-                    distilled_mass: Some(distilled_mass as f32),
-                };
-
-                steps.push(step);
             }
+
+            let remaining_mass = (-inte).exp() * m_0;
+            let distilled_mass = m_0 - remaining_mass;
+
+            let step = CalculationStep {
+                timestamp: current.timestamp as u32,
+                step_index: i as u32,
+                temperatures: current.temperatures.clone(),
+                compositions: current.compositions.clone(),
+                delta_x,
+                f_0,
+                f_1,
+                partial_integral,
+                accumulated_integral: Some(inte as f32),
+                remaining_mass: Some(remaining_mass as f32),
+                distilled_mass: Some(distilled_mass as f32),
+            };
+
+            steps.push(step);
         }
 
         steps
